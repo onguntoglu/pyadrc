@@ -1,7 +1,8 @@
 import numpy as np
+import scipy.signal
 
 
-class pyadrc():
+class ADRC():
 
     """
     Python class implementing Active Disturbance Rejection Control
@@ -11,7 +12,7 @@ class pyadrc():
     basic knowledge about PID control, observers and state-feedback.
     """
 
-    class cont_linear_adrc(object):
+    class ContLinearADRC(object):
         """Continuous time linear active disturbance rejection control
 
         Args:
@@ -93,7 +94,7 @@ class pyadrc():
                 self.C = np.hstack((1, 0, 0)).reshape(1, -1)
                 self.D = 0
 
-            self.xhat = np.zeros((nx, 1), dtype=np.float64) 
+            self.xhat = np.zeros((nx, 1), dtype=np.float64)
 
         def update_eso(self, y, u):
             """Update the linear extended state observer
@@ -124,8 +125,8 @@ class pyadrc():
 
             return u
 
-    class discrete_linear_adrc():
-        """Discrete time linear active disturbance rejection control::
+    class DiscreteLinearADRC():
+        """Discrete time linear active disturbance rejection control:
 
         Args:
             order (int): first- or second-order ADRC
@@ -274,4 +275,62 @@ class pyadrc():
             if self.inc_form is True:
                 u = ukm1 + u
 
-            return u[0][0]
+            return u
+
+
+class System(object):
+
+    def __init__(self, K=1.0, T=1.0, D=None, delta=0):
+        """Python class to generate a first-or second-order process
+        for simulation and verification purposes
+
+        Args:
+            K (float): DC gain
+            T (float): Time constant
+            D (float): Damping factor
+            delta (float): Sampling time in seconds
+                if delta == 0: continuous-time process
+        """
+
+        assert isinstance(K, float)
+        assert isinstance(T, float)
+        assert delta >= 0, "Sampling time nonnegative"
+
+        # First-order process
+        num = np.array([K]).reshape(-1)
+        den = np.array([T, 1]).reshape(-1)
+
+        if D is not None:
+            assert isinstance(D, float),\
+                "Damping factor D must be type float"
+            # Second-order process
+            den = np.array([T**2, 2*D*T, 1]).reshape(-1)
+
+        system = scipy.signal.tf2ss(num, den)
+
+        if delta != 0:
+            # If sampling time delta is not zero, discretize system
+            system = scipy.signal.cont2discrete(system, delta)
+
+        self.system = system
+
+        self.t = 0
+
+    def __call__(self, u, dt, x0):
+
+        if self.system[4] is None:
+            [tout, y, x] = scipy.signal.lsim(self.system, U=u,
+                                             T=self.t, X0=x0)
+
+            self.t += dt
+
+            return tout, y, x
+
+        else:
+            [tout, y, x] = scipy.signal.dlsim(self.system, u=[u],
+                                              t=[self.t], x0=x0)
+
+            self.t += dt
+
+            return tout, y, x
+        import control
