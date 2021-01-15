@@ -1,6 +1,8 @@
 import numpy as np
 import scipy.signal
 
+import do_mpc
+
 
 class ADRC():
 
@@ -125,7 +127,7 @@ class ADRC():
 
             return u
 
-    class DiscreteLinearADRC():
+    class DiscreteLinearADRC_SS():
         """Discrete time linear active disturbance rejection control:
 
         Args:
@@ -205,6 +207,7 @@ class ADRC():
                                    1 / self.b0]).reshape(-1, 1)
 
             self.xhat = np.zeros((nx, 1), dtype=np.float64)
+            self.ukm1 = 0
 
             self.delta_x = np.zeros((nx, 1), dtype=np.float64)
 
@@ -243,39 +246,70 @@ class ADRC():
                 y (float): Current measurement (time k) of the process
                 ukm1 (float): Previous control signal (time k-1)
             """
-            self.delta_x = self.oA.dot(self.xhat) + self.oB.dot(
-                ukm1).reshape(-1, 1) + self.L.dot(y)
 
-            if self.inc_form is True:
-                self.xhat = self.xhat + self.delta_x
+            if self.inc_form is False:
+                self.xhat = self.oA.dot(self.xhat) + self.oB.dot(
+                    ukm1).reshape(-1, 1) + self.L.dot(y)
             else:
-                self.xhat = self.delta_x
+                self.delta_x = self.oA.dot(self.xhat) + self.oB.dot(
+                    ukm1).reshape(-1, 1) + self.L.dot(y)
 
-        def __call__(self, y, ukm1, r):
+                self.xhat = self.delta_x + self.xhat
+
+        def __call__(self, y, u, r):
             """Update the linear ADRC controller
 
             Args:
                 y (float): Current measurement (time k) of the process
-                ukm1 (float): Previous control signal (time k-1)
+                u (float): Previous control signal (time k-1)
                 r (float): reference (setpoint)
 
             Returns:
                 u (float): Control signal u
             """
 
-            self.update_eso(y, ukm1)
-            self.x = self.xhat
+            self.update_eso(y, u)
 
-            if self.inc_form is True:
-                r = self.delta_r(r)
-                self.x = self.delta_x
+            if self.inc_form is False:
+                u = (self.Kp / self.b0) * r - self.w.T @ self.xhat
+            else:
+                delta_u = (self.Kp / self.b0) * r - self.w.T @ self.delta_x
+                u = self.ukm1 + delta_u
 
-            u = (self.Kp / self.b0) * r - self.w.T @ self.x
+            self.ukm1 = u
 
-            if self.inc_form is True:
-                u = ukm1 + u
+            return u[0][0]
 
-            return u
+
+class QuadAltitude(object):
+
+    def __init__(self, delta=0.001, m=0.028, g=9.807):
+        """Discrete-time model of altitude of a quadcopter
+
+        Args:
+            delta (float): Sampling time
+            m (float): Mass of the quadcopter in kg
+            g (float): Gravity
+            ukm1 (float): Previous control signal (time k-1)
+        """
+
+        self.g = g
+
+        self.Ad = np.vstack(([1, delta], [0, 1]))
+        self.Bd = np.vstack((0, delta*m))
+        self.Cd = np.hstack((1, 0)).reshape(1, -1)
+        self.Dd = 0
+
+        self.x = np.zeros((2, 1), dtype=np.float64)
+
+    def __call__(self, u):
+
+        self.x = self.Ad.dot(self.x) + self.Bd.dot(u - self.g)
+        
+        if self.x[0][0] < 0:
+            self.x = np.zeros((2, 1), dtype=np.float64)
+
+        return self.Cd.dot(self.x)
 
 
 class System(object):
@@ -314,23 +348,21 @@ class System(object):
 
         self.system = system
 
-        self.t = 0
+        self.x = np.zeros()
 
     def __call__(self, u, dt, x0):
 
         if self.system[4] is None:
+            # _, yout, xout = scipy.signal.lsim(tf, U=[self_u, u], T=[0., .1], X0=x0)
             [tout, y, x] = scipy.signal.lsim(self.system, U=u,
-                                             T=self.t, X0=x0)
+                                             T=[0., .1], X0=x0)
 
             self.t += dt
 
             return tout, y, x
 
         else:
-            [tout, y, x] = scipy.signal.dlsim(self.system, u=[u],
-                                              t=[self.t], x0=x0)
 
             self.t += dt
 
             return tout, y, x
-        import control
