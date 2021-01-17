@@ -1,7 +1,45 @@
 import numpy as np
 import scipy.signal
 
-import do_mpc
+
+class SaturatedInteger(object):
+    """Emulates an integer, but with a built-in minimum and maximum.
+    https://stackoverflow.com/a/30197824
+    """
+
+    def __init__(self, min_, max_, value=None):
+        self.min = min_
+        self.max = max_
+        self.value = min_ if value is None else value
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, new_val):
+        self._value = min(self.max, max(self.min, new_val))
+
+    @staticmethod
+    def _other_val(other):
+        """Get the value from the other object."""
+        if hasattr(other, 'value'):
+            return other.value
+        return other
+
+    def __add__(self, other):
+        new_val = self.value + self._other_val(other)
+        return SaturatedInteger(self.min, self.max, new_val)
+
+    def __sub__(self, other):
+        new_val = self.value - self._other_val(other)
+        return SaturatedInteger(self.min, self.max, new_val)
+
+    __radd__ = __add__
+    __rsub__ = __sub__
+
+    def __eq__(self, other):
+        return self.value == self._other_val(other)
 
 
 class ADRC():
@@ -14,142 +52,50 @@ class ADRC():
     basic knowledge about PID control, observers and state-feedback.
     """
 
-    class ContLinearADRC(object):
-        """Continuous time linear active disturbance rejection control
+    class adrc_ss():
+        """Discrete time linear active disturbance rejection control
+        in state-space representation
 
         Args:
             order (int): first- or second-order ADRC
-            b0 (float): modelling parameter b0
-            t_settle (float): settling time in seconds, determines
-                controller bandwidth
-            k_eso (float): observer bandwidth
-            half_gain (tuple) (bool, bool):  half gain tuning for
-                controller/observer gains, Default to False
-        """
 
-        def __init__(self, order, b0, t_settle,
-                     k_eso, half_gain=(False, False)):
-
-            assert (order == 1) or (order == 2),\
-                'Only first- and second-order ADRC is implemented'
-
-            self.b0 = b0
-            nx = order + 1
-
-            if order == 1:
-                # Controller dynamics
-                sCL = -4 / t_settle
-                self.Kp = -sCL
-
-                # Observer dynamics
-                sESO = k_eso * sCL
-
-                # Observer gains resulting in common-location observer poles
-                L = np.array([-2 * sESO, sESO**2]).reshape(-1, 1)
-                self.L = L
-
-                # Controller gains
-                self.w = np.array([self.Kp / self.b0,
-                                   1 / self.b0]).reshape(-1, 1)
-
-                # Half gain tuning for controller/observer
-                if half_gain[0] is True:
-                    self.w = self.w / 2
-                if half_gain[1] is True:
-                    self.L = self.L / 2
-
-                self.A = np.vstack(([-L[0], 1], [-L[1], 0]))
-                self.B = np.vstack((b0, 0))
-                self.C = np.hstack((1, 0)).reshape(1, -1)
-                self.D = 0
-
-            if order == 2:
-
-                # Controller parameters for closed-loop dynamics
-                sCL = -6 / t_settle
-                self.Kp = sCL**2
-                self.Kd = -2 * sCL
-
-                # Observer dynamics
-                sESO = k_eso * sCL
-
-                # Observer gains resulting in common-location observer poles
-                L = np.array([-3 * sESO,
-                              3 * sESO**2,
-                              -(sESO)**3]).reshape(-1, 1)
-                self.L = L
-
-                # Controller gains
-                self.w = np.array([self.Kp / self.b0,
-                                   self.Kd / self.b0,
-                                   1 / self.b0]).reshape(-1, 1)
-
-                if half_gain[0] is True:
-                    self.w = self.w / 2
-                if half_gain[1] is True:
-                    self.L = self.L / 2
-
-                self.A = np.vstack(([-L[0], 1, 0],
-                                    [-L[1], 0, 1],
-                                    [-L[2], 0, 0]))
-                self.B = np.vstack((0, b0, 0))
-                self.C = np.hstack((1, 0, 0)).reshape(1, -1)
-                self.D = 0
-
-            self.xhat = np.zeros((nx, 1), dtype=np.float64)
-
-        def update_eso(self, y, u):
-            """Update the linear extended state observer
-
-            Args:
-                y (float): Current measurement (time k) of the process
-                u (float): Previous control signal
-            """
-
-            self.xhat = self.A.dot(self.xhat) + self.B.dot(
-                u).reshape(-1, 1) + self.L.dot(y)
-
-        def __call__(self, y, u, r):
-            """Update the linear ADRC
-
-            Args:
-                y (float): Current measurement (time k) of the process
-                u (float): Previous control signal
-                r (float): reference (setpoint)
-
-            Returns:
-                u (float): Control signal u
-            """
-
-            self.update_eso(y, u)
-
-            u = (self.Kp / self.b0) * r - self.w.T @ self.xhat
-
-            return u
-
-    class DiscreteLinearADRC_SS():
-        """Discrete time linear active disturbance rejection control:
-
-        Args:
-            order (int): first- or second-order ADRC
             delta (float): sampling time in seconds
+
             b0 (float): modelling parameter b0
+
             t_settle (float): settling time in seconds, determines
-                controller bandwidth
+                closed-loop bandwidth
+
             k_eso (float): observer bandwidth
+
             eso_init (np.array): initial state for the extended state observer,
                 Defaults to False, i.e. x0 = 0
+
+            rate_lim (tuple) (float, float): rate limits for the control
+                output. Defaults to -np.inf, np.inf
+
+            magnitude_lim (tuple) (float, float): magnitude limits for the
+                control output. Defaults to -np.inf, np.inf
+
             half_gain (tuple) (bool, bool):  half gain tuning for
                 controller/observer gains, Default to False
-            inc_form (bool): incremental form of ADRC, Defaults to False
+
         """
 
         def __init__(self, order, delta, b0,
                      t_settle, k_eso, eso_init=False,
-                     half_gain=(False, False), inc_form=False):
+                     rate_lim=(-np.inf, np.inf),
+                     magnitude_lim=(-np.inf, np.inf),
+                     half_gain=(False, False)):
 
             assert (order == 1) or (order == 2),\
                 'Only first- and second-order ADRC is implemented'
+
+            assert magnitude_lim[0] < magnitude_lim[1],\
+                'Lower limit of magnitude cannot be greater than upper limit'
+
+            assert rate_lim[0] < rate_lim[1],\
+                'Lower limit of rate cannot be greater than upper limit'
 
             self.b0 = b0
             nx = order + 1
@@ -207,11 +153,11 @@ class ADRC():
                                    1 / self.b0]).reshape(-1, 1)
 
             self.xhat = np.zeros((nx, 1), dtype=np.float64)
-            self.ukm1 = 0
 
-            self.delta_x = np.zeros((nx, 1), dtype=np.float64)
+            self.ukm1 = np.zeros((1, 1), dtype=np.float64)
 
-            self.inc_form = inc_form
+            self.magnitude_lim = magnitude_lim
+            self.rate_lim = rate_lim
 
             if half_gain[0] is True:
                 self.w = self.w / 2
@@ -236,8 +182,8 @@ class ADRC():
             self.oB = self.Bd - self.L @ self.Cd @ self.Bd
             self.oC = self.Cd
 
-            if self.inc_form is True:
-                self.oA = self.oA - np.eye(self.oA.shape[0])
+            # if self.inc_form is True:
+            #    self.oA = self.oA - np.eye(self.oA.shape[0])
 
         def update_eso(self, y, ukm1):
             """Update the linear extended state observer
@@ -247,14 +193,37 @@ class ADRC():
                 ukm1 (float): Previous control signal (time k-1)
             """
 
-            if self.inc_form is False:
-                self.xhat = self.oA.dot(self.xhat) + self.oB.dot(
+            self.xhat = self.oA.dot(self.xhat) + self.oB.dot(
                     ukm1).reshape(-1, 1) + self.L.dot(y)
+
+            """
+            if self.inc_form is False:
             else:
                 self.delta_x = self.oA.dot(self.xhat) + self.oB.dot(
                     ukm1).reshape(-1, 1) + self.L.dot(y)
+                    self.xhat = self.delta_x + self.xhat
+            """
 
-                self.xhat = self.delta_x + self.xhat
+        def saturation(self, _min, _max, _val):
+
+            return min(_max, max(_min, _val))
+
+        def limiter(self, u_control):
+            """Implements rate and magnitude limiter"""
+
+            # Limiting the rate of u (delta_u)
+            # delta_u = SaturatedInteger(self.rate_lim[0], self.rate_lim[1],
+            #                            u_control - self.ukm1)
+
+            delta_u = self.saturation(self.rate_lim[0], self.rate_lim[1],
+                                      u_control - self.ukm1)
+
+            # Limiting the magnitude of u
+            self.ukm1 = self.saturation(self.magnitude_lim[0],
+                                        self.magnitude_lim[1],
+                                        delta_u + self.ukm1)
+
+            return self.ukm1
 
         def __call__(self, y, u, r):
             """Update the linear ADRC controller
@@ -268,17 +237,131 @@ class ADRC():
                 u (float): Control signal u
             """
 
+            u = (self.Kp / self.b0) * r - self.w.T @ self.xhat
+            u = self.limiter(u)
             self.update_eso(y, u)
 
-            if self.inc_form is False:
-                u = (self.Kp / self.b0) * r - self.w.T @ self.xhat
-            else:
-                delta_u = (self.Kp / self.b0) * r - self.w.T @ self.delta_x
-                u = self.ukm1 + delta_u
+            return u
 
-            self.ukm1 = u
+    class adrc_tf(object):
 
-            return u[0][0]
+        """Discrete time linear active disturbance rejection control
+        in state-space representation
+
+        Args:
+            order (int): first- or second-order ADRC
+
+            delta (float): sampling time in seconds
+
+            b0 (float): modelling parameter b0
+
+            w_cl (float): desired closed-loop bandwidth
+
+            k_eso (float): observer bandwidth
+
+            eso_init (np.array): initial state for the extended state observer,
+                Defaults to False, i.e. x0 = 0
+
+            rate_lim (tuple) (float, float): rate limits for the control
+                output. Defaults to -np.inf, np.inf
+
+            magnitude_lim (tuple) (float, float): magnitude limits for the
+                control output. Defaults to -np.inf, np.inf
+
+            half_gain (tuple) (bool, bool):  half gain tuning for
+                controller/observer gains, Default to False
+        """
+
+        def __init__(self, order, delta, b0,
+                     w_cl, k_eso, eso_init=False,
+                     rate_lim=(-np.inf, np.inf),
+                     magnitude_lim=(-np.inf, np.inf),
+                     half_gain=(False, False)):
+
+            self.b0 = 0.
+            zESO = np.exp(-k_eso * w_cl * delta)
+
+            if order == 1:
+
+                # Controller gains
+                k1 = w_cl
+
+                # Observer gains
+                l1 = 1 - zESO**2
+                l2 = (1/delta) * (1 - zESO)**2
+
+                alpha1 = (delta * k1 - 1) * (1 - l1)
+                beta0 = (1 / b0) * (k1 * l1 + l2)
+                beta1 = (1 / b0) * (delta * k1 * l2 - k1 * l1 - l2)
+                gam0 = k1 / (k1 * l1 + l2)
+                gam1 = k1 * (delta * l2 + l1 - 2) / (k1 * l1 + l2)
+                gam2 = k1 * (1 - l1) / (k1 * l1 + l2)
+
+                self.coeff = [alpha1, beta0, beta1, gam0, gam1, gam2]
+
+            elif order == 2:
+
+                k1 = w_cl**2
+                k2 = 2 * w_cl
+
+                l1 = 1 - zESO**3
+                l2 = (3/2*delta) * (1 - zESO)**2 * (1 + zESO)
+                l3 = (1 / delta**2) * (1 - zESO)**3
+
+                alpha1 = (delta ** 2 / 2) * (
+                    k1 - k1 * l1 - k2 * l2) + delta * k2 + delta * l2 + l1 - 2
+
+                alpha2 = (((delta**2 * k1) / 2) - delta * k2 + 1) * (1 - l1)
+
+                beta0 = (1 / b0) * (k1 * l1 + k2 * l2 + l3)
+                beta1 = (1 / b0) * (((
+                    delta**2 * k1 * l3) / 2) + delta * k1 * l2 +
+                    delta * k2 * l3 - 2 * (k1 * l1 + k2 * l2 + l3))
+
+                beta2 = (1 / b0) * (((
+                    delta**2 * k1 * l3) / 2) - delta * k1 * l2 -
+                    delta * k2 * l3 + (k1 * l1 + k2 * l2 + l3))
+
+                gam0 = k1 / (k1 * l1 + k2 * l2 + l3)
+                gam1 = (k1 * (delta**2 * l3 + 2 *
+                              delta * l2 + 2 * l1 - 6)
+                        / (k1 * l1 + k2 * l2 + l3))
+
+                gam2 = (k1 * (delta**2 * l3 - 2 *
+                              delta * l2 - 4 * l1 + 6)
+                        / (k1 * l1 + k2 * l2 + l3))
+
+                gam3 = k1 * (l1 - 1) / (k1 * l1 + k2 * l2 + l3)
+
+                self.coeff = [alpha1, alpha2, beta0,
+                              beta1, beta2, gam0,
+                              gam0, gam1, gam2, gam3]
+
+        def _reference_prefilter(self, u, r):
+            pass
+
+        def _feedback_controller(self):
+            pass
+
+
+class QuadAlt(object):
+    """
+    Altitude simulation of a quadcopter
+    """
+
+    def __init__(self):
+
+        self.g = 9.807
+        self.m = 0.028
+        self.z = 0
+        self.zdot = 0
+
+    def __call__(self, thrust, dt):
+
+        self.zdot += self.zdot + dt*(-self.g + (1/self.m) * thrust)
+        self.z += self.z + dt * self.zdot
+
+        return self.z
 
 
 class QuadAltitude(object):
@@ -294,19 +377,24 @@ class QuadAltitude(object):
         """
 
         self.g = g
+        self.delta = delta
 
         self.Ad = np.vstack(([1, delta], [0, 1]))
         self.Bd = np.vstack((0, delta*m))
         self.Cd = np.hstack((1, 0)).reshape(1, -1)
         self.Dd = 0
 
+        self.delta = delta
+
         self.x = np.zeros((2, 1), dtype=np.float64)
 
     def __call__(self, u):
 
-        self.x = self.Ad.dot(self.x) + self.Bd.dot(u - self.g)
-        
-        if self.x[0][0] < 0:
+        self.x = self.Ad.dot(self.x) + self.Bd.dot(u)
+
+        self.x[1][0] -= self.g * self.delta
+
+        if self.x[0][0] < 0.:
             self.x = np.zeros((2, 1), dtype=np.float64)
 
         return self.Cd.dot(self.x)
@@ -314,7 +402,7 @@ class QuadAltitude(object):
 
 class System(object):
 
-    def __init__(self, K=1.0, T=1.0, D=None, delta=0):
+    def __init__(self, K=1.0, T=1.0, D=None, delta=None):
         """Python class to generate a first-or second-order process
         for simulation and verification purposes
 
@@ -323,12 +411,11 @@ class System(object):
             T (float): Time constant
             D (float): Damping factor
             delta (float): Sampling time in seconds
-                if delta == 0: continuous-time process
         """
 
         assert isinstance(K, float)
         assert isinstance(T, float)
-        assert delta >= 0, "Sampling time nonnegative"
+        assert delta > 0, "Sampling time has to be positive"
 
         # First-order process
         num = np.array([K]).reshape(-1)
@@ -342,27 +429,16 @@ class System(object):
 
         system = scipy.signal.tf2ss(num, den)
 
-        if delta != 0:
-            # If sampling time delta is not zero, discretize system
-            system = scipy.signal.cont2discrete(system, delta)
+        system = scipy.signal.cont2discrete(system, delta)
 
-        self.system = system
+        self.A = system[0]
+        self.B = system[1]
+        self.C = system[2]
 
-        self.x = np.zeros()
+        self.x = np.zeros((len(den) - 1, 1), dtype=np.float64)
 
-    def __call__(self, u, dt, x0):
+    def __call__(self, u):
 
-        if self.system[4] is None:
-            # _, yout, xout = scipy.signal.lsim(tf, U=[self_u, u], T=[0., .1], X0=x0)
-            [tout, y, x] = scipy.signal.lsim(self.system, U=u,
-                                             T=[0., .1], X0=x0)
+        self.x = self.A.dot(self.x) + self.B.dot(u)
 
-            self.t += dt
-
-            return tout, y, x
-
-        else:
-
-            self.t += dt
-
-            return tout, y, x
+        return self.C.dot(self.x)
