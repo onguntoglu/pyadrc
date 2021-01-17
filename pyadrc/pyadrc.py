@@ -1,6 +1,8 @@
 import numpy as np
 import scipy.signal
 
+from collections import deque
+
 
 class SaturatedInteger(object):
     """Emulates an integer, but with a built-in minimum and maximum.
@@ -281,6 +283,8 @@ class ADRC():
             self.b0 = 0.
             zESO = np.exp(-k_eso * w_cl * delta)
 
+            self.order = order
+
             if order == 1:
 
                 # Controller gains
@@ -298,6 +302,9 @@ class ADRC():
                 gam2 = k1 * (1 - l1) / (k1 * l1 + l2)
 
                 self.coeff = [alpha1, beta0, beta1, gam0, gam1, gam2]
+
+                self.u_state = deque(maxlen=3)
+                self.y_state = deque(maxlen=3)
 
             elif order == 2:
 
@@ -337,7 +344,10 @@ class ADRC():
                               beta1, beta2, gam0,
                               gam0, gam1, gam2, gam3]
 
-        def _reference_prefilter(self, u, r):
+                self.u_state = deque(maxlen=4)
+                self.y_state = deque(maxlen=4)
+
+        def _reference_prefilter(self):
             pass
 
         def _feedback_controller(self):
