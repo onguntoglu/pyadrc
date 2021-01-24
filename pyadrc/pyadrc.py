@@ -4,46 +4,6 @@ import scipy.signal
 from collections import deque
 
 
-class SaturatedInteger(object):
-    """Emulates an integer, but with a built-in minimum and maximum.
-    https://stackoverflow.com/a/30197824
-    """
-
-    def __init__(self, min_, max_, value=None):
-        self.min = min_
-        self.max = max_
-        self.value = min_ if value is None else value
-
-    @property
-    def value(self):
-        return self._value
-
-    @value.setter
-    def value(self, new_val):
-        self._value = min(self.max, max(self.min, new_val))
-
-    @staticmethod
-    def _other_val(other):
-        """Get the value from the other object."""
-        if hasattr(other, 'value'):
-            return other.value
-        return other
-
-    def __add__(self, other):
-        new_val = self.value + self._other_val(other)
-        return SaturatedInteger(self.min, self.max, new_val)
-
-    def __sub__(self, other):
-        new_val = self.value - self._other_val(other)
-        return SaturatedInteger(self.min, self.max, new_val)
-
-    __radd__ = __add__
-    __rsub__ = __sub__
-
-    def __eq__(self, other):
-        return self.value == self._other_val(other)
-
-
 class ADRC():
 
     """
@@ -84,21 +44,19 @@ class ADRC():
 
         """
 
-        def __init__(self, order, delta, b0,
-                     t_settle, k_eso, eso_init=False,
-                     rate_lim=(-np.inf, np.inf),
-                     magnitude_lim=(-np.inf, np.inf),
+        def __init__(self,
+                     order,
+                     delta,
+                     b0,
+                     t_settle,
+                     k_eso,
+                     eso_init=False,
+                     rate_lim=(None, None),
+                     magnitude_lim=(None, None),
                      half_gain=(False, False)):
 
             assert (order == 1) or (order == 2),\
                 'Only first- and second-order ADRC is implemented'
-
-            assert magnitude_lim[0] < magnitude_lim[1],\
-                'Lower limit of magnitude cannot be greater than upper limit'
-
-            assert rate_lim[0] < rate_lim[1],\
-                'Lower limit of rate cannot be greater than upper limit'
-
             self.b0 = b0
             nx = order + 1
 
@@ -206,9 +164,18 @@ class ADRC():
                     self.xhat = self.delta_x + self.xhat
             """
 
-        def saturation(self, _min, _max, _val):
+        def _saturation(self, _limits, _val):
 
-            return min(_max, max(_min, _val))
+            lo, hi = _limits
+
+            if _val is None:
+                return None
+            elif hi is not None and _val > hi:
+                return hi
+            elif lo is not None and _val < lo:
+                return lo
+
+            return _val
 
         def limiter(self, u_control):
             """Implements rate and magnitude limiter"""
@@ -217,13 +184,13 @@ class ADRC():
             # delta_u = SaturatedInteger(self.rate_lim[0], self.rate_lim[1],
             #                            u_control - self.ukm1)
 
-            delta_u = self.saturation(self.rate_lim[0], self.rate_lim[1],
-                                      u_control - self.ukm1)
+            delta_u = self._saturation((self.rate_lim[0], self.rate_lim[1]),
+                                       u_control - self.ukm1)
 
             # Limiting the magnitude of u
-            self.ukm1 = self.saturation(self.magnitude_lim[0],
-                                        self.magnitude_lim[1],
-                                        delta_u + self.ukm1)
+            self.ukm1 = self._saturation((self.magnitude_lim[0],
+                                         self.magnitude_lim[1]),
+                                         delta_u + self.ukm1)
 
             return self.ukm1
 
@@ -248,7 +215,7 @@ class ADRC():
     class adrc_tf(object):
 
         """Discrete time linear active disturbance rejection control
-        in state-space representation
+        in transfer function representation
 
         Args:
             order (int): first- or second-order ADRC
@@ -272,15 +239,16 @@ class ADRC():
 
             half_gain (tuple) (bool, bool):  half gain tuning for
                 controller/observer gains, Default to False
+
         """
 
         def __init__(self, order, delta, b0,
                      w_cl, k_eso, eso_init=False,
-                     rate_lim=(-np.inf, np.inf),
-                     magnitude_lim=(-np.inf, np.inf),
+                     rate_lim=(None, None),
+                     magnitude_lim=(None, None),
                      half_gain=(False, False)):
 
-            self.b0 = 0.
+            self.b0 = b0
             zESO = np.exp(-k_eso * w_cl * delta)
 
             self.order = order
@@ -294,17 +262,17 @@ class ADRC():
                 l1 = 1 - zESO**2
                 l2 = (1/delta) * (1 - zESO)**2
 
-                alpha1 = (delta * k1 - 1) * (1 - l1)
-                beta0 = (1 / b0) * (k1 * l1 + l2)
-                beta1 = (1 / b0) * (delta * k1 * l2 - k1 * l1 - l2)
-                gam0 = k1 / (k1 * l1 + l2)
-                gam1 = k1 * (delta * l2 + l1 - 2) / (k1 * l1 + l2)
-                gam2 = k1 * (1 - l1) / (k1 * l1 + l2)
+                self.alpha1 = (delta * k1 - 1) * (1 - l1)
+                self.beta0 = (1 / b0) * (k1 * l1 + l2)
+                self.beta1 = (1 / b0) * (delta * k1 * l2 - k1 * l1 - l2)
+                self.gam0 = k1 / (k1 * l1 + l2)
+                self.gam1 = k1 * (delta * l2 + l1 - 2) / (k1 * l1 + l2)
+                self.gam2 = k1 * (1 - l1) / (k1 * l1 + l2)
 
-                self.coeff = [alpha1, beta0, beta1, gam0, gam1, gam2]
-
-                self.u_state = deque(maxlen=3)
-                self.y_state = deque(maxlen=3)
+                self.prefilt_in = deque([0, 0], maxlen=2)
+                self.prefilt_out = deque([0], maxlen=1)
+                self.ctrl_in = deque([0], maxlen=1)
+                self.ctrl_out = deque([0, 0], maxlen=2)
 
             elif order == 2:
 
@@ -312,46 +280,103 @@ class ADRC():
                 k2 = 2 * w_cl
 
                 l1 = 1 - zESO**3
-                l2 = (3/2*delta) * (1 - zESO)**2 * (1 + zESO)
+                l2 = (3/(2*delta)) * (1 - zESO)**2 * (1 + zESO)
                 l3 = (1 / delta**2) * (1 - zESO)**3
 
-                alpha1 = (delta ** 2 / 2) * (
+                self.alpha1 = (delta ** 2 / 2) * (
                     k1 - k1 * l1 - k2 * l2) + delta * k2 + delta * l2 + l1 - 2
 
-                alpha2 = (((delta**2 * k1) / 2) - delta * k2 + 1) * (1 - l1)
+                self.alpha2 = (((delta**2 * k1) / 2) - delta * k2 + 1) * (1 - l1)
 
-                beta0 = (1 / b0) * (k1 * l1 + k2 * l2 + l3)
-                beta1 = (1 / b0) * (((
+                self.beta0 = (1 / b0) * (k1 * l1 + k2 * l2 + l3)
+                self.beta1 = (1 / b0) * (((
                     delta**2 * k1 * l3) / 2) + delta * k1 * l2 +
                     delta * k2 * l3 - 2 * (k1 * l1 + k2 * l2 + l3))
 
-                beta2 = (1 / b0) * (((
+                self.beta2 = (1 / b0) * (((
                     delta**2 * k1 * l3) / 2) - delta * k1 * l2 -
                     delta * k2 * l3 + (k1 * l1 + k2 * l2 + l3))
 
-                gam0 = k1 / (k1 * l1 + k2 * l2 + l3)
-                gam1 = (k1 * (delta**2 * l3 + 2 *
-                              delta * l2 + 2 * l1 - 6)
-                        / (k1 * l1 + k2 * l2 + l3))
+                self.gam0 = k1 / (k1 * l1 + k2 * l2 + l3)
+                self.gam1 = ((k1 * (delta**2 * l3 + 2 *
+                                    delta * l2 + 2 * l1 - 6))
+                             / (k1 * l1 + k2 * l2 + l3))
 
-                gam2 = (k1 * (delta**2 * l3 - 2 *
-                              delta * l2 - 4 * l1 + 6)
-                        / (k1 * l1 + k2 * l2 + l3))
+                self.gam2 = ((k1 * (delta**2 * l3 - 2 *
+                                    delta * l2 - 4 * l1 + 6))
+                             / (k1 * l1 + k2 * l2 + l3))
 
-                gam3 = k1 * (l1 - 1) / (k1 * l1 + k2 * l2 + l3)
+                self.gam3 = (k1 * (l1 - 1)) / (k1 * l1 + k2 * l2 + l3)
 
-                self.coeff = [alpha1, alpha2, beta0,
-                              beta1, beta2, gam0,
-                              gam0, gam1, gam2, gam3]
+                self.prefilt_in = deque([0, 0, 0], maxlen=3)
+                self.prefilt_out = deque([0, 0], maxlen=2)
+                self.ctrl_in = deque([0, 0], maxlen=2)
+                self.ctrl_out = deque([0, 0, 0], maxlen=3)
 
-                self.u_state = deque(maxlen=4)
-                self.y_state = deque(maxlen=4)
+        def _ref_prefilter(self, x):
+            """Filter the reference signal"""
 
-        def _reference_prefilter(self):
-            pass
+            if self.order == 1:
 
-        def _feedback_controller(self):
-            pass
+                filt_y = self.gam0 * x +\
+                    self.gam1 * self.prefilt_in[0] +\
+                    self.gam2 * self.prefilt_in[1] -\
+                    (self.beta1/self.beta0) * self.prefilt_out[0]
+
+            else:
+
+                filt_y = self.gam0 * x +\
+                    self.gam1 * self.prefilt_in[0] +\
+                    self.gam2 * self.prefilt_in[1] +\
+                    self.gam3 * self.prefilt_in[2] -\
+                    (self.beta1/self.beta0) * self.prefilt_out[0] -\
+                    (self.beta2/self.beta0) * self.prefilt_out[1]
+
+            self.prefilt_out.appendleft(filt_y)
+            self.prefilt_in.appendleft(x)
+
+            return filt_y
+
+        def _fb_ctrl(self, x):
+            """
+            Calculate controller output
+            """
+
+            if self.order == 1:
+
+                u = self.beta0 * x +\
+                    self.beta1 * self.ctrl_in[0] -\
+                    (self.alpha1 - 1) * self.ctrl_out[0] +\
+                    self.alpha1 * self.ctrl_out[1]
+
+            else:
+                u = self.beta0 * x +\
+                    self.beta1 * self.ctrl_in[0] +\
+                    self.beta2 * self.ctrl_in[1] -\
+                    (self.alpha1 - 1) * self.ctrl_out[0] -\
+                    (self.alpha2 - self.alpha1) * self.ctrl_out[1] +\
+                    self.alpha2 * self.ctrl_out[2]
+
+            self.ctrl_in.appendleft(x)
+            self.ctrl_out.appendleft(u)
+
+            return u
+
+        def __call__(self, y, r):
+            """Update the linear ADRC controller
+
+            Args:
+                y (float): Current measurement (time k) of the process
+                r (float): reference (setpoint)
+
+            Returns:
+                u (float): Control signal u
+            """
+
+            filt_r = self._ref_prefilter(r)
+
+            return filt_r, self._fb_ctrl(filt_r - y)
+
 
 
 class QuadAlt(object):
