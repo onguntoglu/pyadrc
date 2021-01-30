@@ -1,11 +1,12 @@
 """Main module."""
 
 import numpy as np
+import scipy
 
 from collections import deque
 
 
-def _saturation(self, _limits, _val):
+def saturation(self, _limits: tuple, _val: float):
 
     lo, hi = _limits
 
@@ -30,45 +31,43 @@ class adrc():
     """
 
     class state_space():
-        """Discrete time linear active disturbance rejection control
-        in state-space representation
-
-        Args:
-            order (int): first- or second-order ADRC
-
-            delta (float): sampling time in seconds
-
-            b0 (float): modelling parameter b0
-
-            t_settle (float): settling time in seconds, determines
-                closed-loop bandwidth
-
-            k_eso (float): observer bandwidth
-
-            eso_init (np.array): initial state for the extended state observer,
-                Defaults to False, i.e. x0 = 0
-
-            rate_lim (tuple) (float, float): rate limits for the control
-                output. Defaults to -np.inf, np.inf
-
-            magnitude_lim (tuple) (float, float): magnitude limits for the
-                control output. Defaults to -np.inf, np.inf
-
-            half_gain (tuple) (bool, bool):  half gain tuning for
-                controller/observer gains, Default to False
-
-        """
 
         def __init__(self,
-                     order,
-                     delta,
-                     b0,
-                     t_settle,
-                     k_eso,
-                     eso_init=False,
-                     rate_lim=(None, None),
-                     magnitude_lim=(None, None),
-                     half_gain=(False, False)):
+                     order: int,
+                     delta: float,
+                     b0: float,
+                     t_settle: float,
+                     k_eso: float,
+                     eso_init: np.array = False,
+                     rate_lim: tuple = (None, None),
+                     magnitude_lim: tuple = (None, None),
+                     half_gain: tuple = (False, False)):
+            """[summary]
+
+            :param order: first- or second-order ADRC
+            :type order: int
+            :param delta: sampling time in seconds
+            :type delta: float
+            :param b0: gain parameter b0
+            :type b0: float
+            :param t_settle: settling time in seconds, determines
+                closed-loop bandwidth
+            :type t_settle: float
+            :param k_eso: observer bandwidth
+            :type k_eso: float
+            :param eso_init: initial state for the extended state observer,
+                Defaults to False, i.e. x0 = 0, defaults to False
+            :type eso_init: np.array, optional
+            :param rate_lim: rate limits for the control
+                signal, defaults to (None, None)
+            :type rate_lim: tuple, optional
+            :param magnitude_lim: magnitude limits for the
+                control signal, defaults to (None, None)
+            :type magnitude_lim: tuple, optional
+            :param half_gain: half gain tuning for
+                controller/observer gains, defaults to (False, False)
+            :type half_gain: tuple, optional
+            """
 
             assert (order == 1) or (order == 2),\
                 'Only first- and second-order ADRC is implemented'
@@ -148,8 +147,7 @@ class adrc():
             self._linear_extended_state_observer()
 
         def _linear_extended_state_observer(self):
-            """
-            Internal function implementing the one-step update
+            """Internal function implementing the one-step update
             equation for the linear extended state observer
             """
 
@@ -160,27 +158,25 @@ class adrc():
             # if self.inc_form is True:
             #    self.oA = self.oA - np.eye(self.oA.shape[0])
 
-        def update_eso(self, y, ukm1):
+        def update_eso(self, y: float, ukm1: float):
             """Update the linear extended state observer
 
-            Args:
-                y (float): Current measurement (time k) of the process
-                ukm1 (float): Previous control signal (time k-1)
+            :param y: Current measurement y[k]
+            :type y: float
+            :param ukm1: Previous control signal u[k-1]
+            :type ukm1: float
             """
-
             self.xhat = self.oA.dot(self.xhat) + self.oB.dot(
                     ukm1).reshape(-1, 1) + self.L.dot(y)
 
-            """
-            if self.inc_form is False:
-            else:
-                self.delta_x = self.oA.dot(self.xhat) + self.oB.dot(
-                    ukm1).reshape(-1, 1) + self.L.dot(y)
-                    self.xhat = self.delta_x + self.xhat
-            """
+        def limiter(self, u_control: float) -> float:
+            """Implements rate and magnitude limiter
 
-        def limiter(self, u_control):
-            """Implements rate and magnitude limiter"""
+            :param u_control: control signal to be limited
+            :type u_control: float
+            :return: rate and magnitude limited control signal
+            :rtype: float
+            """
 
             # Limiting the rate of u (delta_u)
             # delta_u = SaturatedInteger(self.rate_lim[0], self.rate_lim[1],
@@ -196,16 +192,21 @@ class adrc():
 
             return self.ukm1
 
-        def __call__(self, y, u, r):
-            """Update the linear ADRC controller
+        def __call__(self, y: float, u: float, r: float, dt: float = 0.) -> float:
+            """Returns value of the control signal depending on current measurements,
+            previous control action, reference signal.
 
-            Args:
-                y (float): Current measurement (time k) of the process
-                u (float): Previous control signal (time k-1)
-                r (float): reference (setpoint)
-
-            Returns:
-                u (float): Control signal u
+            :param y: Current measurement y[k] of the process
+            :type y: float
+            :param u: Previous control signal u[k-1]
+            :type u: float
+            :param r: Current reference signal r[k]
+            :type r: float
+            :param dt: Sampling time, defaults to 0. (Useful for simulation
+            purposes)
+            :type dt: float, optional
+            :return: Current control signal u[k]
+            :rtype: float
             """
 
             u = (self.Kp / self.b0) * r - self.w.T @ self.xhat
@@ -400,3 +401,102 @@ class adrc():
             filt_r = self._ref_prefilter(r)
 
             return filt_r, self._c_fb(filt_r - y)
+
+
+class QuadAltitude(object):
+
+    def __init__(self, delta: float = 0.001,
+                 m: float = 0.028, g: float = 9.807):
+        """Discrete-time model of altitude of a quadcopter
+
+        :param delta: Discretization time (zero-order hold)
+        in seconds, defaults to 0.001
+        :type delta: float, optional
+        :param m: Mass of the quadcopter, defaults to 0.028
+        :type m: float, optional
+        :param g: Gravitational acceleration, defaults to 9.807
+        :type g: float, optional
+        """
+
+        assert isinstance(g, float), 'Gravity needs to be of type float'
+        assert isinstance(m, float), 'Mass of quadcopter \
+            needs to be of type float'
+
+        self.g = g
+        self.delta = delta
+
+        self.Ad = np.vstack(([1, delta],
+                             [0, 1]))
+        self.Bd = np.vstack(([0, 0],
+                            [delta*m, -delta*g]))
+
+        self.Cd = np.hstack((1, 0)).reshape(1, -1)
+        self.Dd = 0
+
+        self.delta = delta
+
+        self.x = np.zeros((2, 1), dtype=np.float64)
+
+    def __call__(self, u):
+
+        # Turn on gravity
+        u_k = np.vstack((u, 1))
+
+        self.x = self.Ad.dot(self.x) + self.Bd.dot(u_k)
+
+        return self.Cd.dot(self.x)
+
+
+class System(object):
+
+    def __init__(self, K: float = 1.0, T: float = 1.0,
+                 D: float = None, delta: float = 0.001):
+        """Python class to generate a first-or second-order process
+        for simulation and verification purposes
+
+        :param K: system gain, defaults to 1.0
+        :type K: float, optional
+        :param T: time constant, defaults to 1.0
+        :type T: float, optional
+        :param D: damping factor, defaults to None
+        :type D: float, optional
+        :param delta: discretization time in seconds,
+        defaults to 0.001
+        :type delta: float, optional
+        """
+        assert isinstance(K, float)
+        assert isinstance(T, float)
+        assert delta > 0, "Sampling time has to be positive"
+
+        # First-order process
+        num = np.array([K]).reshape(-1)
+        den = np.array([T, 1]).reshape(-1)
+
+        if D is not None:
+            assert isinstance(D, float),\
+                "Damping factor D must be type float"
+            # Second-order process
+            den = np.array([T**2, 2*D*T, 1]).reshape(-1)
+
+        system = scipy.signal.tf2ss(num, den)
+
+        system = scipy.signal.cont2discrete(system, delta)
+
+        self.A = system[0]
+        self.B = system[1]
+        self.C = system[2]
+
+        self.x = np.zeros((len(den) - 1, 1), dtype=np.float64)
+
+    def __call__(self, u: float) -> float:
+        """System response w.r.t. control signal u
+
+        :param u: control signal u
+        :type u: float
+        :return: system response y
+        :rtype: float
+        """
+
+        self.x = self.A.dot(self.x) + self.B.dot(u)
+
+        return self.C.dot(self.x)
