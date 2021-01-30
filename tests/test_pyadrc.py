@@ -7,13 +7,19 @@ import pyadrc
 
 
 @pytest.fixture
-def response():
-    """Sample pytest fixture.
+def quadcopter_model():
+    return pyadrc.QuadAltitude()
 
-    See more at: http://doc.pytest.org/en/latest/fixture.html
-    """
-    # import requests
-    # return requests.get('https://github.com/audreyr/cookiecutter-pypackage')
+@pytest.fixture
+def saturation(_val: float) -> float:
+    return pyadrc.saturation((0, 100), _val)
+
+
+def check_saturation(saturation) -> float:
+    assert saturation(120) == 100
+    assert saturation(-20) == 0
+    mid = 42.
+    assert saturation(mid) == mid
 
 
 def test_content(response):
