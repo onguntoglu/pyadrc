@@ -1,7 +1,22 @@
+"""Main module."""
+
 import numpy as np
-import scipy.signal
 
 from collections import deque
+
+
+def _saturation(self, _limits, _val):
+
+    lo, hi = _limits
+
+    if _val is None:
+        return None
+    elif hi is not None and _val > hi:
+        return hi
+    elif lo is not None and _val < lo:
+        return lo
+
+    return _val
 
 
 class ADRC():
@@ -164,19 +179,6 @@ class ADRC():
                     self.xhat = self.delta_x + self.xhat
             """
 
-        def _saturation(self, _limits, _val):
-
-            lo, hi = _limits
-
-            if _val is None:
-                return None
-            elif hi is not None and _val > hi:
-                return hi
-            elif lo is not None and _val < lo:
-                return lo
-
-            return _val
-
         def limiter(self, u_control):
             """Implements rate and magnitude limiter"""
 
@@ -184,13 +186,13 @@ class ADRC():
             # delta_u = SaturatedInteger(self.rate_lim[0], self.rate_lim[1],
             #                            u_control - self.ukm1)
 
-            delta_u = self._saturation((self.rate_lim[0], self.rate_lim[1]),
-                                       u_control - self.ukm1)
+            delta_u = _saturation((self.rate_lim[0], self.rate_lim[1]),
+                                  u_control - self.ukm1)
 
             # Limiting the magnitude of u
-            self.ukm1 = self._saturation((self.magnitude_lim[0],
-                                         self.magnitude_lim[1]),
-                                         delta_u + self.ukm1)
+            self.ukm1 = _saturation((self.magnitude_lim[0],
+                                     self.magnitude_lim[1]),
+                                    delta_u + self.ukm1)
 
             return self.ukm1
 
@@ -332,7 +334,7 @@ class ADRC():
                     self.gam3 * self.prefilt_x[2] -\
                     (self.beta1/self.beta0) * self.prefilt_y[0] -\
                     (self.beta2/self.beta0) * self.prefilt_y[1]
-                    
+
             self.prefilt_y.appendleft(y)
             self.prefilt_x.appendleft(x)
 
@@ -398,99 +400,3 @@ class ADRC():
             filt_r = self._ref_prefilter(r)
 
             return filt_r, self._c_fb(filt_r - y)
-
-
-
-class QuadAlt(object):
-    """
-    Altitude simulation of a quadcopter
-    """
-
-    def __init__(self):
-
-        self.g = 9.807
-        self.m = 0.028
-        self.z = 0
-        self.zdot = 0
-
-    def __call__(self, thrust, dt):
-
-        self.zdot += self.zdot + dt*(-self.g + (1/self.m) * thrust)
-        self.z += self.z + dt * self.zdot
-
-        return self.z
-
-
-class QuadAltitude(object):
-
-    def __init__(self, delta=0.001, m=0.028, g=9.807):
-        """Discrete-time model of altitude of a quadcopter
-
-        Args:
-            delta (float): Sampling time
-            m (float): Mass of the quadcopter in kg
-            g (float): Gravity
-            ukm1 (float): Previous control signal (time k-1)
-        """
-
-        self.g = g
-        self.delta = delta
-
-        self.Ad = np.vstack(([1, delta], [0, 1]))
-        self.Bd = np.vstack((0, delta*m))
-        self.Cd = np.hstack((1, 0)).reshape(1, -1)
-        self.Dd = 0
-
-        self.delta = delta
-
-        self.x = np.zeros((2, 1), dtype=np.float64)
-
-    def __call__(self, u):
-
-        self.x = self.Ad.dot(self.x) + self.Bd.dot(u)
-
-        return self.Cd.dot(self.x)
-
-
-class System(object):
-
-    def __init__(self, K=1.0, T=1.0, D=None, delta=None):
-        """Python class to generate a first-or second-order process
-        for simulation and verification purposes
-
-        Args:
-            K (float): DC gain
-            T (float): Time constant
-            D (float): Damping factor
-            delta (float): Sampling time in seconds
-        """
-
-        assert isinstance(K, float)
-        assert isinstance(T, float)
-        assert delta > 0, "Sampling time has to be positive"
-
-        # First-order process
-        num = np.array([K]).reshape(-1)
-        den = np.array([T, 1]).reshape(-1)
-
-        if D is not None:
-            assert isinstance(D, float),\
-                "Damping factor D must be type float"
-            # Second-order process
-            den = np.array([T**2, 2*D*T, 1]).reshape(-1)
-
-        system = scipy.signal.tf2ss(num, den)
-
-        system = scipy.signal.cont2discrete(system, delta)
-
-        self.A = system[0]
-        self.B = system[1]
-        self.C = system[2]
-
-        self.x = np.zeros((len(den) - 1, 1), dtype=np.float64)
-
-    def __call__(self, u):
-
-        self.x = self.A.dot(self.x) + self.B.dot(u)
-
-        return self.C.dot(self.x)
