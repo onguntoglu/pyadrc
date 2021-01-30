@@ -82,7 +82,7 @@ class ADRC():
                 self.w = np.array([self.Kp / self.b0,
                                    1 / self.b0]).reshape(-1, 1)
 
-            if order == 2:
+            elif order == 2:
                 self.Ad = np.vstack((
                     [1, delta, (delta**2) / 2],
                     [0, 1, delta],
@@ -251,6 +251,8 @@ class ADRC():
             self.b0 = b0
             zESO = np.exp(-k_eso * w_cl * delta)
 
+            self.integrator = 0.
+
             self.order = order
 
             if order == 1:
@@ -269,10 +271,10 @@ class ADRC():
                 self.gam1 = k1 * (delta * l2 + l1 - 2) / (k1 * l1 + l2)
                 self.gam2 = k1 * (1 - l1) / (k1 * l1 + l2)
 
-                self.prefilt_in = deque([0, 0], maxlen=2)
-                self.prefilt_out = deque([0], maxlen=1)
+                self.prefilt_x = deque([0, 0], maxlen=2)
+                self.prefilt_y = deque([0], maxlen=1)
                 self.ctrl_in = deque([0], maxlen=1)
-                self.ctrl_out = deque([0, 0], maxlen=2)
+                self.ctrl_out = deque([0], maxlen=1)
 
             elif order == 2:
 
@@ -289,6 +291,7 @@ class ADRC():
                 self.alpha2 = (((delta**2 * k1) / 2) - delta * k2 + 1) * (1 - l1)
 
                 self.beta0 = (1 / b0) * (k1 * l1 + k2 * l2 + l3)
+
                 self.beta1 = (1 / b0) * (((
                     delta**2 * k1 * l3) / 2) + delta * k1 * l2 +
                     delta * k2 * l3 - 2 * (k1 * l1 + k2 * l2 + l3))
@@ -298,44 +301,42 @@ class ADRC():
                     delta * k2 * l3 + (k1 * l1 + k2 * l2 + l3))
 
                 self.gam0 = k1 / (k1 * l1 + k2 * l2 + l3)
-                self.gam1 = ((k1 * (delta**2 * l3 + 2 *
-                                    delta * l2 + 2 * l1 - 6))
-                             / (k1 * l1 + k2 * l2 + l3))
 
-                self.gam2 = ((k1 * (delta**2 * l3 - 2 *
-                                    delta * l2 - 4 * l1 + 6))
-                             / (k1 * l1 + k2 * l2 + l3))
+                self.gam1 = (k1 * (delta**2 * l3 + 2 *
+                                   delta * l2 + 2 * l1 - 6)) / (k1 * l1 + k2 * l2 + l3)
+
+                self.gam2 = (k1 * (delta**2 * l3 - 2 * delta * l2 - 4 * l1 + 6)) / (k1 * l1 + k2 * l2 + l3)
 
                 self.gam3 = (k1 * (l1 - 1)) / (k1 * l1 + k2 * l2 + l3)
 
-                self.prefilt_in = deque([0, 0, 0], maxlen=3)
-                self.prefilt_out = deque([0, 0], maxlen=2)
+                self.prefilt_x = deque([0, 0, 0], maxlen=3)
+                self.prefilt_y = deque([0, 0], maxlen=2)
                 self.ctrl_in = deque([0, 0], maxlen=2)
-                self.ctrl_out = deque([0, 0, 0], maxlen=3)
+                self.ctrl_out = deque([0, 0], maxlen=2)
 
         def _ref_prefilter(self, x):
             """Filter the reference signal"""
 
             if self.order == 1:
 
-                filt_y = self.gam0 * x +\
-                    self.gam1 * self.prefilt_in[0] +\
-                    self.gam2 * self.prefilt_in[1] -\
-                    (self.beta1/self.beta0) * self.prefilt_out[0]
+                y = self.gam0 * x +\
+                    self.gam1 * self.prefilt_x[0] +\
+                    self.gam2 * self.prefilt_x[1] -\
+                    (self.beta1/self.beta0) * self.prefilt_y[0]
 
             else:
 
-                filt_y = self.gam0 * x +\
-                    self.gam1 * self.prefilt_in[0] +\
-                    self.gam2 * self.prefilt_in[1] +\
-                    self.gam3 * self.prefilt_in[2] -\
-                    (self.beta1/self.beta0) * self.prefilt_out[0] -\
-                    (self.beta2/self.beta0) * self.prefilt_out[1]
+                y = self.gam0 * x +\
+                    self.gam1 * self.prefilt_x[0] +\
+                    self.gam2 * self.prefilt_x[1] +\
+                    self.gam3 * self.prefilt_x[2] -\
+                    (self.beta1/self.beta0) * self.prefilt_y[0] -\
+                    (self.beta2/self.beta0) * self.prefilt_y[1]
+                    
+            self.prefilt_y.appendleft(y)
+            self.prefilt_x.appendleft(x)
 
-            self.prefilt_out.appendleft(filt_y)
-            self.prefilt_in.appendleft(x)
-
-            return filt_y
+            return y
 
         def _fb_ctrl(self, x):
             """
@@ -344,13 +345,13 @@ class ADRC():
 
             if self.order == 1:
 
-                u = self.beta0 * x +\
+                y = self.beta0 * x +\
                     self.beta1 * self.ctrl_in[0] -\
                     (self.alpha1 - 1) * self.ctrl_out[0] +\
                     self.alpha1 * self.ctrl_out[1]
 
             else:
-                u = self.beta0 * x +\
+                y = self.beta0 * x +\
                     self.beta1 * self.ctrl_in[0] +\
                     self.beta2 * self.ctrl_in[1] -\
                     (self.alpha1 - 1) * self.ctrl_out[0] -\
@@ -358,9 +359,30 @@ class ADRC():
                     self.alpha2 * self.ctrl_out[2]
 
             self.ctrl_in.appendleft(x)
-            self.ctrl_out.appendleft(u)
+            self.ctrl_out.appendleft(y)
 
-            return u
+            return y
+
+        def _c_fb(self, x):
+
+            if self.order == 1:
+
+                y = self.beta0 * x + self.beta1 * self.ctrl_in[0] -\
+                    self.alpha1 * self.ctrl_out[0]
+
+            else:
+
+                y = self.beta0 * x + self.beta1 * self.ctrl_in[0] +\
+                    self.beta2 * self.ctrl_in[1] -\
+                    self.alpha1 * self.ctrl_out[0] -\
+                    self.alpha2 * self.ctrl_out[1]
+
+            self.ctrl_in.appendleft(x)
+            self.ctrl_out.appendleft(y)
+
+            self.integrator += y
+
+            return self.integrator
 
         def __call__(self, y, r):
             """Update the linear ADRC controller
@@ -375,7 +397,7 @@ class ADRC():
 
             filt_r = self._ref_prefilter(r)
 
-            return filt_r, self._fb_ctrl(filt_r - y)
+            return filt_r, self._c_fb(filt_r - y)
 
 
 
@@ -426,11 +448,6 @@ class QuadAltitude(object):
     def __call__(self, u):
 
         self.x = self.Ad.dot(self.x) + self.Bd.dot(u)
-
-        self.x[1][0] -= self.g * self.delta
-
-        if self.x[0][0] < 0.:
-            self.x = np.zeros((2, 1), dtype=np.float64)
 
         return self.Cd.dot(self.x)
 

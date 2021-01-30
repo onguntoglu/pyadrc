@@ -7,17 +7,18 @@ import pyadrc
 
 def main():
 
-    dadrc = pyadrc.ADRC.adrc_ss(order=2, delta=0.001, b0=0.05, t_settle=0.5,
+    dadrc = pyadrc.ADRC.adrc_ss(order=2, delta=0.001, b0=1/16, t_settle=0.5,
                                 k_eso=10, eso_init=False,
-                                rate_lim=(-5, 5),
-                                magnitude_lim=(-100, 100),
+                                rate_lim=(None, None),
+                                magnitude_lim=(None, None),
                                 half_gain=(False, False))
 
-    system = pyadrc.System(K=5.0, T=10.0, D=3.0, delta=0.001)
+    system = pyadrc.System(K=1.0, T=4.0, D=1.0, delta=0.001)
 
     _u, _y = [], []
 
     u = 0
+    y = 0
     counter = 0
 
     _y.append(0)
@@ -25,20 +26,17 @@ def main():
 
     r = 5
 
-    while counter < 10000:
+    while counter < 1000:
         y = system(u)
-
-        if counter > 5000:
-            y = y + 2
-
-        if counter > 7500:
-            r = 8
 
         u = dadrc(y, u, r)
         counter = counter + 1
 
         _y.append(y)
         _u.append(u)
+
+        if counter == 500:
+            r = 8
 
     plt.figure()
     plt.subplot(2, 1, 1)
