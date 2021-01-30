@@ -19,17 +19,17 @@ def _saturation(self, _limits, _val):
     return _val
 
 
-class ADRC():
+class adrc():
 
     """
     Python class implementing Active Disturbance Rejection Control
 
-    It is highly recommended to check the README first before attempting
+    It is highly recommended to check the documentation first before attempting
     to use the package. Although it is simple in nature, ADRC requires some
     basic knowledge about PID control, observers and state-feedback.
     """
 
-    class adrc_ss():
+    class state_space():
         """Discrete time linear active disturbance rejection control
         in state-space representation
 
@@ -214,7 +214,7 @@ class ADRC():
 
             return u
 
-    class adrc_tf(object):
+    class transfer_function(object):
 
         """Discrete time linear active disturbance rejection control
         in transfer function representation

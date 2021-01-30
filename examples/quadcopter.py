@@ -1,4 +1,5 @@
 import numpy as np
+import pyadrc
 
 
 class QuadAltitude(object):
@@ -40,3 +41,6 @@ class QuadAltitude(object):
         self.x = self.Ad.dot(self.x) + self.Bd.dot(u_k)
 
         return self.Cd.dot(self.x)
+
+
+pyadrc.ADRC.adrc_ss()
