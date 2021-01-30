@@ -3,9 +3,7 @@
 """Tests for `pyadrc` package."""
 
 import pytest
-
-
-from pyadrc import pyadrc
+import pyadrc
 
 
 @pytest.fixture
