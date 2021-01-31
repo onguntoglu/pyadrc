@@ -1,7 +1,7 @@
 """Main module."""
 
 import numpy as np
-import time
+# import time
 
 from collections import deque
 

@@ -54,4 +54,3 @@ def test_common_location_observer_poles(check_common_loc_obs_poles):
     check_common_loc_obs_poles(1, 0.001, 1, 0.25, 1)
     check_common_loc_obs_poles(1, 0.001, 1, 0.25, 5)
     check_common_loc_obs_poles(1, 0.001, 1, 0.25, 10)
-    
