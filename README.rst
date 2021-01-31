@@ -6,8 +6,8 @@ pyadrc
 .. image:: https://img.shields.io/pypi/v/pyadrc.svg
         :target: https://pypi.python.org/pypi/pyadrc
 
-.. image:: https://img.shields.io/travis/onguntoglu/pyadrc.svg
-        :target: https://travis-ci.com/onguntoglu/pyadrc
+.. image:: https://www.travis-ci.com/onguntoglu/pyadrc.svg?branch=master
+    :target: https://www.travis-ci.com/onguntoglu/pyadrc
 
 .. image:: https://readthedocs.org/projects/pyadrc/badge/?version=latest
         :target: https://pyadrc.readthedocs.io/en/latest/?badge=latest
