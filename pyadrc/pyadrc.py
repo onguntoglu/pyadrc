@@ -1,12 +1,21 @@
 """Main module."""
 
 import numpy as np
-import scipy
+import time
 
 from collections import deque
 
 
-def saturation(self, _limits: tuple, _val: float):
+def saturation(_limits: tuple, _val: float) -> float:
+    """Saturation function
+
+    :param _limits: saturation limits (low, high)
+    :type _limits: tuple
+    :param _val: sat(_val)
+    :type _val: float
+    :return: saturated signal
+    :rtype: float
+    """
 
     lo, hi = _limits
 
@@ -39,8 +48,8 @@ class adrc():
                      t_settle: float,
                      k_eso: float,
                      eso_init: np.array = False,
-                     rate_lim: tuple = (None, None),
-                     magnitude_lim: tuple = (None, None),
+                     r_lim: tuple = (None, None),
+                     m_lim: tuple = (None, None),
                      half_gain: tuple = (False, False)):
             """[summary]
 
@@ -58,12 +67,12 @@ class adrc():
             :param eso_init: initial state for the extended state observer,
                 Defaults to False, i.e. x0 = 0, defaults to False
             :type eso_init: np.array, optional
-            :param rate_lim: rate limits for the control
+            :param r_lim: rate limits for the control
                 signal, defaults to (None, None)
-            :type rate_lim: tuple, optional
-            :param magnitude_lim: magnitude limits for the
+            :type r_lim: tuple, optional
+            :param m_lim: magnitude limits for the
                 control signal, defaults to (None, None)
-            :type magnitude_lim: tuple, optional
+            :type m_lim: tuple, optional
             :param half_gain: half gain tuning for
                 controller/observer gains, defaults to (False, False)
             :type half_gain: tuple, optional
@@ -89,8 +98,8 @@ class adrc():
                 zESO = np.exp(sESO * delta)
 
                 # Observer gains resulting in common-location observer poles
-                self.L = np.array([1 - (zESO)**2, (1 / delta) *
-                                   (1 - zESO)**2]).reshape(-1, 1)
+                self.L = np.array([1 - (zESO)**2,
+                                   (1 / delta) * (1 - zESO)**2]).reshape(-1, 1)
 
                 # Controller gains
                 self.w = np.array([self.Kp / self.b0,
@@ -116,8 +125,7 @@ class adrc():
 
                 # Observer gains resulting in common-location observer poles
                 self.L = np.array([1 - (zESO)**3,
-                                   (3 / (2 * delta)) * (1 - zESO)**2 *
-                                   (1 + zESO),
+                                   (3 / (2 * delta)) * (1 - zESO)**2 * (1 + zESO),
                                    (1 / delta**2) * (1 - zESO)**3]
                                   ).reshape(-1, 1)
 
@@ -130,8 +138,8 @@ class adrc():
 
             self.ukm1 = np.zeros((1, 1), dtype=np.float64)
 
-            self.magnitude_lim = magnitude_lim
-            self.rate_lim = rate_lim
+            self.m_lim = m_lim
+            self.r_lim = r_lim
 
             if half_gain[0] is True:
                 self.w = self.w / 2
@@ -167,7 +175,7 @@ class adrc():
             :type ukm1: float
             """
             self.xhat = self.oA.dot(self.xhat) + self.oB.dot(
-                    ukm1).reshape(-1, 1) + self.L.dot(y)
+                ukm1).reshape(-1, 1) + self.L.dot(y)
 
         def limiter(self, u_control: float) -> float:
             """Implements rate and magnitude limiter
@@ -179,18 +187,67 @@ class adrc():
             """
 
             # Limiting the rate of u (delta_u)
-            # delta_u = SaturatedInteger(self.rate_lim[0], self.rate_lim[1],
+            # delta_u = SaturatedInteger(self.r_lim[0], self.r_lim[1],
             #                            u_control - self.ukm1)
 
-            delta_u = _saturation((self.rate_lim[0], self.rate_lim[1]),
-                                  u_control - self.ukm1)
+            delta_u = saturation((self.r_lim[0], self.r_lim[1]),
+                                 u_control - self.ukm1)
 
             # Limiting the magnitude of u
-            self.ukm1 = _saturation((self.magnitude_lim[0],
-                                     self.magnitude_lim[1]),
-                                    delta_u + self.ukm1)
+            self.ukm1 = saturation((self.m_lim[0],
+                                    self.m_lim[1]),
+                                   delta_u + self.ukm1)
 
             return self.ukm1
+
+        @property
+        def eso_states(self) -> tuple:
+            """Returns the states of the linear extended state observer
+
+            :return: States of the linear extended state observer
+            :rtype: tuple
+            """
+            return self.xhat
+
+        @property
+        def magnitude_lim(self) -> tuple:
+            """Returns the magnitude limits of the controller
+
+            :return: Magnitude limits of the controller
+            :rtype: tuple
+            """
+            return self.m_lim
+
+        @magnitude_lim.setter
+        def magnitude_lim(self, lim: tuple):
+            """Magnitude limitter setter
+
+            :param mag: New magnitude limits
+            :type mag: tuple
+            """
+            assert len(lim) == 2
+            assert lim[0] < lim[1]
+            self.m_lim = lim
+
+        @property
+        def rate_lim(self) -> tuple:
+            """Returns the magnitude limits of the controller
+
+            :return: Magnitude limits of the controller
+            :rtype: tuple
+            """
+            return self.r_lim
+
+        @rate_lim.setter
+        def rate_lim(self, lim: tuple):
+            """Rate limiter setter
+
+            :param lim: New rate limits
+            :type lim: tuple
+            """
+            assert len(lim) == 2
+            assert lim[0] < lim[1]
+            self.r_lim = lim
 
         def __call__(self, y: float, u: float, r: float, dt: float = 0.) -> float:
             """Returns value of the control signal depending on current measurements,
@@ -234,10 +291,10 @@ class adrc():
             eso_init (np.array): initial state for the extended state observer,
                 Defaults to False, i.e. x0 = 0
 
-            rate_lim (tuple) (float, float): rate limits for the control
+            r_lim (tuple) (float, float): rate limits for the control
                 output. Defaults to -np.inf, np.inf
 
-            magnitude_lim (tuple) (float, float): magnitude limits for the
+            m_lim (tuple) (float, float): magnitude limits for the
                 control output. Defaults to -np.inf, np.inf
 
             half_gain (tuple) (bool, bool):  half gain tuning for
@@ -247,8 +304,8 @@ class adrc():
 
         def __init__(self, order, delta, b0,
                      w_cl, k_eso, eso_init=False,
-                     rate_lim=(None, None),
-                     magnitude_lim=(None, None),
+                     r_lim=(None, None),
+                     m_lim=(None, None),
                      half_gain=(False, False)):
 
             self.b0 = b0
@@ -265,7 +322,7 @@ class adrc():
 
                 # Observer gains
                 l1 = 1 - zESO**2
-                l2 = (1/delta) * (1 - zESO)**2
+                l2 = (1 / delta) * (1 - zESO)**2
 
                 self.alpha1 = (delta * k1 - 1) * (1 - l1)
                 self.beta0 = (1 / b0) * (k1 * l1 + l2)
@@ -285,7 +342,7 @@ class adrc():
                 k2 = 2 * w_cl
 
                 l1 = 1 - zESO**3
-                l2 = (3/(2*delta)) * (1 - zESO)**2 * (1 + zESO)
+                l2 = (3 / (2 * delta)) * (1 - zESO)**2 * (1 + zESO)
                 l3 = (1 / delta**2) * (1 - zESO)**3
 
                 self.alpha1 = (delta ** 2 / 2) * (
@@ -296,17 +353,14 @@ class adrc():
                 self.beta0 = (1 / b0) * (k1 * l1 + k2 * l2 + l3)
 
                 self.beta1 = (1 / b0) * (((
-                    delta**2 * k1 * l3) / 2) + delta * k1 * l2 +
-                    delta * k2 * l3 - 2 * (k1 * l1 + k2 * l2 + l3))
+                    delta**2 * k1 * l3) / 2) + delta * k1 * l2 + delta * k2 * l3 - 2 * (k1 * l1 + k2 * l2 + l3))
 
                 self.beta2 = (1 / b0) * (((
-                    delta**2 * k1 * l3) / 2) - delta * k1 * l2 -
-                    delta * k2 * l3 + (k1 * l1 + k2 * l2 + l3))
+                    delta**2 * k1 * l3) / 2) - delta * k1 * l2 - delta * k2 * l3 + (k1 * l1 + k2 * l2 + l3))
 
                 self.gam0 = k1 / (k1 * l1 + k2 * l2 + l3)
 
-                self.gam1 = (k1 * (delta**2 * l3 + 2 *
-                                   delta * l2 + 2 * l1 - 6)) / (k1 * l1 + k2 * l2 + l3)
+                self.gam1 = (k1 * (delta**2 * l3 + 2 * delta * l2 + 2 * l1 - 6)) / (k1 * l1 + k2 * l2 + l3)
 
                 self.gam2 = (k1 * (delta**2 * l3 - 2 * delta * l2 - 4 * l1 + 6)) / (k1 * l1 + k2 * l2 + l3)
 
@@ -325,7 +379,7 @@ class adrc():
                 y = self.gam0 * x +\
                     self.gam1 * self.prefilt_x[0] +\
                     self.gam2 * self.prefilt_x[1] -\
-                    (self.beta1/self.beta0) * self.prefilt_y[0]
+                    (self.beta1 / self.beta0) * self.prefilt_y[0]
 
             else:
 
@@ -333,8 +387,8 @@ class adrc():
                     self.gam1 * self.prefilt_x[0] +\
                     self.gam2 * self.prefilt_x[1] +\
                     self.gam3 * self.prefilt_x[2] -\
-                    (self.beta1/self.beta0) * self.prefilt_y[0] -\
-                    (self.beta2/self.beta0) * self.prefilt_y[1]
+                    (self.beta1 / self.beta0) * self.prefilt_y[0] -\
+                    (self.beta2 / self.beta0) * self.prefilt_y[1]
 
             self.prefilt_y.appendleft(y)
             self.prefilt_x.appendleft(x)
@@ -401,102 +455,3 @@ class adrc():
             filt_r = self._ref_prefilter(r)
 
             return filt_r, self._c_fb(filt_r - y)
-
-
-class QuadAltitude(object):
-
-    def __init__(self, delta: float = 0.001,
-                 m: float = 0.028, g: float = 9.807):
-        """Discrete-time model of altitude of a quadcopter
-
-        :param delta: Discretization time (zero-order hold)
-        in seconds, defaults to 0.001
-        :type delta: float, optional
-        :param m: Mass of the quadcopter, defaults to 0.028
-        :type m: float, optional
-        :param g: Gravitational acceleration, defaults to 9.807
-        :type g: float, optional
-        """
-
-        assert isinstance(g, float), 'Gravity needs to be of type float'
-        assert isinstance(m, float), 'Mass of quadcopter \
-            needs to be of type float'
-
-        self.g = g
-        self.delta = delta
-
-        self.Ad = np.vstack(([1, delta],
-                             [0, 1]))
-        self.Bd = np.vstack(([0, 0],
-                            [delta*m, -delta*g]))
-
-        self.Cd = np.hstack((1, 0)).reshape(1, -1)
-        self.Dd = 0
-
-        self.delta = delta
-
-        self.x = np.zeros((2, 1), dtype=np.float64)
-
-    def __call__(self, u):
-
-        # Turn on gravity
-        u_k = np.vstack((u, 1))
-
-        self.x = self.Ad.dot(self.x) + self.Bd.dot(u_k)
-
-        return self.Cd.dot(self.x)
-
-
-class System(object):
-
-    def __init__(self, K: float = 1.0, T: float = 1.0,
-                 D: float = None, delta: float = 0.001):
-        """Python class to generate a first-or second-order process
-        for simulation and verification purposes
-
-        :param K: system gain, defaults to 1.0
-        :type K: float, optional
-        :param T: time constant, defaults to 1.0
-        :type T: float, optional
-        :param D: damping factor, defaults to None
-        :type D: float, optional
-        :param delta: discretization time in seconds,
-        defaults to 0.001
-        :type delta: float, optional
-        """
-        assert isinstance(K, float)
-        assert isinstance(T, float)
-        assert delta > 0, "Sampling time has to be positive"
-
-        # First-order process
-        num = np.array([K]).reshape(-1)
-        den = np.array([T, 1]).reshape(-1)
-
-        if D is not None:
-            assert isinstance(D, float),\
-                "Damping factor D must be type float"
-            # Second-order process
-            den = np.array([T**2, 2*D*T, 1]).reshape(-1)
-
-        system = scipy.signal.tf2ss(num, den)
-
-        system = scipy.signal.cont2discrete(system, delta)
-
-        self.A = system[0]
-        self.B = system[1]
-        self.C = system[2]
-
-        self.x = np.zeros((len(den) - 1, 1), dtype=np.float64)
-
-    def __call__(self, u: float) -> float:
-        """System response w.r.t. control signal u
-
-        :param u: control signal u
-        :type u: float
-        :return: system response y
-        :rtype: float
-        """
-
-        self.x = self.A.dot(self.x) + self.B.dot(u)
-
-        return self.C.dot(self.x)
