@@ -19,8 +19,9 @@
 #
 import os
 import sys
-import pyadrc
 sys.path.insert(0, os.path.abspath('..'))
+
+import pyadrc
 
 # -- General configuration ---------------------------------------------
 
