@@ -1,7 +1,7 @@
 """Main module."""
 
 import numpy as np
-# import time
+import time
 
 from collections import deque
 
@@ -51,7 +51,8 @@ class adrc():
                      r_lim: tuple = (None, None),
                      m_lim: tuple = (None, None),
                      half_gain: tuple = (False, False)):
-            """[summary]
+            """Discrete linear time-invariant state space implementation\
+                of ADRC
 
             :param order: first- or second-order ADRC
             :type order: int
@@ -59,29 +60,31 @@ class adrc():
             :type delta: float
             :param b0: gain parameter b0
             :type b0: float
-            :param t_settle: settling time in seconds, determines
+            :param t_settle: settling time in seconds, determines\
                 closed-loop bandwidth
             :type t_settle: float
             :param k_eso: observer bandwidth
             :type k_eso: float
-            :param eso_init: initial state for the extended state observer,
+            :param eso_init: initial state for the extended state observer,\
                 Defaults to False, i.e. x0 = 0, defaults to False
             :type eso_init: np.array, optional
-            :param r_lim: rate limits for the control
+            :param r_lim: rate limits for the control\
                 signal, defaults to (None, None)
             :type r_lim: tuple, optional
-            :param m_lim: magnitude limits for the
+            :param m_lim: magnitude limits for the\
                 control signal, defaults to (None, None)
             :type m_lim: tuple, optional
-            :param half_gain: half gain tuning for
+            :param half_gain: half gain tuning for\
                 controller/observer gains, defaults to (False, False)
             :type half_gain: tuple, optional
             """
 
             assert (order == 1) or (order == 2),\
                 'Only first- and second-order ADRC is implemented'
+
             self.b0 = b0
             nx = order + 1
+            self.delta = delta
 
             if order == 1:
                 self.Ad = np.vstack(([1, delta], [0, 1]))
@@ -152,6 +155,10 @@ class adrc():
                         with order'
                 self.xhat = np.array(eso_init).reshape(-1, 1)
 
+            self._last_time = None
+            self._last_output = None
+            self._last_input = None
+
             self._linear_extended_state_observer()
 
         def _linear_extended_state_observer(self):
@@ -210,7 +217,7 @@ class adrc():
             return self.xhat
 
         @property
-        def magnitude_lim(self) -> tuple:
+        def magnitude_limits(self):
             """Returns the magnitude limits of the controller
 
             :return: Magnitude limits of the controller
@@ -218,8 +225,8 @@ class adrc():
             """
             return self.m_lim
 
-        @magnitude_lim.setter
-        def magnitude_lim(self, lim: tuple):
+        @magnitude_limits.setter
+        def magnitude_limits(self, lim):
             """Magnitude limitter setter
 
             :param mag: New magnitude limits
@@ -228,18 +235,19 @@ class adrc():
             assert len(lim) == 2
             assert lim[0] < lim[1]
             self.m_lim = lim
+            return
 
         @property
-        def rate_lim(self) -> tuple:
+        def rate_limits(self):
             """Returns the magnitude limits of the controller
 
-            :return: Magnitude limits of the controller
+            :return: Rate limits of the controller
             :rtype: tuple
             """
             return self.r_lim
 
-        @rate_lim.setter
-        def rate_lim(self, lim: tuple):
+        @rate_limits.setter
+        def rate_limits(self, lim):
             """Rate limiter setter
 
             :param lim: New rate limits
@@ -249,7 +257,7 @@ class adrc():
             assert lim[0] < lim[1]
             self.r_lim = lim
 
-        def __call__(self, y: float, u: float, r: float, dt: float = 0.) -> float:
+        def __call__(self, y: float, u: float, r: float, zoh: bool = False) -> float:
             """Returns value of the control signal depending on current measurements,
             previous control action, reference signal.
 
@@ -259,18 +267,31 @@ class adrc():
             :type u: float
             :param r: Current reference signal r[k]
             :type r: float
-            :param dt: Sampling time, defaults to 0. (Useful for simulation
-            purposes)
-            :type dt: float, optional
+            :param zoh: only update every delta seconds, defaults to False
+            :type zoh: bool, optional
             :return: Current control signal u[k]
             :rtype: float
             """
+
+            now = time.monotonic()
+
+            if zoh is True:
+                try:
+                    dt = now - self._last_time if now - self._last_time else 1e-16
+                except TypeError:
+                    dt = 1e-16
+
+            if zoh is True and dt < self.delta and self._last_output is not None:
+                # Return last output of the controller if not enough time has passed
+                return self._last_output
 
             u = (self.Kp / self.b0) * r - self.w.T @ self.xhat
             u = self.limiter(u)
             self.update_eso(y, u)
 
-            return u
+            self._last_output = float(u)
+            self._last_time = now
+            return float(u)
 
     class transfer_function(object):
 
@@ -307,6 +328,9 @@ class adrc():
                      r_lim=(None, None),
                      m_lim=(None, None),
                      half_gain=(False, False)):
+
+            raise NotImplementedError('Transfer function form of ADRC is not\
+                                      fully implemented')
 
             self.b0 = b0
             zESO = np.exp(-k_eso * w_cl * delta)
@@ -395,43 +419,20 @@ class adrc():
 
             return y
 
-        def _fb_ctrl(self, x):
-            """
-            Calculate controller output
-            """
-
-            if self.order == 1:
-
-                y = self.beta0 * x +\
-                    self.beta1 * self.ctrl_in[0] -\
-                    (self.alpha1 - 1) * self.ctrl_out[0] +\
-                    self.alpha1 * self.ctrl_out[1]
-
-            else:
-                y = self.beta0 * x +\
-                    self.beta1 * self.ctrl_in[0] +\
-                    self.beta2 * self.ctrl_in[1] -\
-                    (self.alpha1 - 1) * self.ctrl_out[0] -\
-                    (self.alpha2 - self.alpha1) * self.ctrl_out[1] +\
-                    self.alpha2 * self.ctrl_out[2]
-
-            self.ctrl_in.appendleft(x)
-            self.ctrl_out.appendleft(y)
-
-            return y
-
         def _c_fb(self, x):
 
             if self.order == 1:
 
-                y = self.beta0 * x + self.beta1 * self.ctrl_in[0] -\
+                y = self.beta0 * x + \
+                    self.beta1 * self.ctrl_in[0] -\
                     self.alpha1 * self.ctrl_out[0]
 
             else:
 
-                y = self.beta0 * x + self.beta1 * self.ctrl_in[0] +\
-                    self.beta2 * self.ctrl_in[1] -\
-                    self.alpha1 * self.ctrl_out[0] -\
+                y = self.beta0 * x + \
+                    self.beta1 * self.ctrl_in[0] + \
+                    self.beta2 * self.ctrl_in[1] - \
+                    self.alpha1 * self.ctrl_out[0] - \
                     self.alpha2 * self.ctrl_out[1]
 
             self.ctrl_in.appendleft(x)
