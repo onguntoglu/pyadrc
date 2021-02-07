@@ -1,14 +1,14 @@
 import numpy as np
-import scipy
+import scipy.signal
 
 
 class QuadAltitude(object):
 
-    def __init__(self, delta: float = 0.001,
+    def __init__(self, dt: float = 0.001,
                  m: float = 0.028, g: float = 9.807):
         """Discrete-time model of altitude of a quadcopter
 
-        :param delta: Discretization time (zero-order hold)
+        :param dt: Discretization time (zero-order hold)
         in seconds, defaults to 0.001
         :type delta: float, optional
         :param m: Mass of the quadcopter, defaults to 0.028
@@ -22,28 +22,20 @@ class QuadAltitude(object):
             needs to be of type float'
 
         self.g = g
-        self.delta = delta
+        self.m = m
+        self.dt = dt
 
-        self.Ad = np.vstack(([1, delta],
-                             [0, 1]))
-        self.Bd = np.vstack(([0, 0],
-                            [delta * m, -delta * g]))
-
-        self.Cd = np.hstack((1, 0)).reshape(1, -1)
-        self.Dd = 0
-
-        self.delta = delta
-
-        self.x = np.zeros((2, 1), dtype=np.float64)
+        self.vel = 0
+        self.pos = 0
 
     def __call__(self, u):
 
-        # Turn on gravity
-        u_k = np.vstack((u, 1))
+        acc = u * (1/self.m) - self.g
 
-        self.x = self.Ad.dot(self.x) + self.Bd.dot(u_k)
+        self.vel += acc * self.dt
+        self.pos += self.vel * self.dt
 
-        return self.Cd.dot(self.x)
+        return self.pos
 
 
 class System(object):
@@ -84,7 +76,7 @@ class System(object):
         self.A = system[0]
         self.B = system[1]
         self.C = system[2]
-
+        
         self.x = np.zeros((len(den) - 1, 1), dtype=np.float64)
 
     def __call__(self, u: float) -> float:
