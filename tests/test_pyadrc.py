@@ -73,6 +73,7 @@ def test_direction(adrc_ss, y, r, b0):
 
 
 def test_zoh(adrc_ss_nominal):
+    # Test zero-order hold
     u = 0
     y = 0
 
