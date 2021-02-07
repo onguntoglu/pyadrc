@@ -13,7 +13,9 @@ pyadrc
         :target: https://pyadrc.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
 
-
+.. image:: https://img.shields.io/github/license/onguntoglu/pyadrc.svg
+        :target: https://github.com/onguntoglu/pyadrc/blob/master/LICENSE
+        :alt: Licence
 
 
 Active Disturbance Rejection Control for Python
