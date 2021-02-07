@@ -54,17 +54,22 @@ def test_zero(adrc_ss_nominal):
     assert adrc_ss_nominal(1, 1, 0, True) == 0.
 
 
-@pytest.mark.parametrize("y, u, r, b0", [
-    (0, 0, -5, 1),
-    (0, 0, 5, 1),
-    (0, 0, -5, -1),
-    (0, 0, 5, -1)
+@pytest.mark.parametrize("y, r, b0", [
+    (0.5, 1, 1),
+    (-0.5, 1, 1),
+    (0.5, -1, 1),
+    (-0.5, -1, 1),
+    (0.5, 1, -1),
+    (-0.5, 1, -1),
+    (0.5, -1, -1),
+    (-0.5, -1, -1)
 ])
-def test_direction(adrc_ss, y, u, r, b0):
+def test_direction(adrc_ss, y, r, b0):
 
-    # control direction w.r.t. modeling parameter b0, reference r
+    """direction of control action w.r.t. modeling parameter b0, reference\
+    r and current output y"""
     adrc = adrc_ss(order=1, delta=1, b0=b0, t_settle=1, k_eso=1)
-    assert np.sign(adrc(y, u, r)) == np.sign(r) * np.sign(b0)
+    assert np.sign(adrc(y, 0, r)) == np.sign(r - y) * np.sign(b0)
 
 
 def test_zoh(adrc_ss_nominal):
@@ -90,10 +95,14 @@ def test_zoh(adrc_ss_nominal):
 def test_magnitude_limit(adrc_ss):
 
     adrc = adrc_ss(order=1, delta=1, b0=10, t_settle=1, k_eso=1, m_lim=(0, 5))
-    assert adrc(0, 0, 30) == 5
+    u1 = adrc(0, 0, 30)
+
+    assert u1 == 5
 
     adrc.magnitude_limits = (0, 10)
-    assert adrc(0, 0, 30) == 10
+    u2 = adrc(0, u1, 30)
+
+    assert u2 == 10
 
 
 def test_rate_limit(adrc_ss):

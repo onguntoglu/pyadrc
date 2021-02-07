@@ -35,6 +35,10 @@ class QuadAltitude(object):
         self.vel += acc * self.dt
         self.pos += self.vel * self.dt
 
+        if self.pos <= 0:
+            self.vel = 0
+            self.pos = 0
+
         return self.pos
 
 
@@ -76,7 +80,7 @@ class System(object):
         self.A = system[0]
         self.B = system[1]
         self.C = system[2]
-        
+
         self.x = np.zeros((len(den) - 1, 1), dtype=np.float64)
 
     def __call__(self, u: float) -> float:

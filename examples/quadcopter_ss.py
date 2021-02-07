@@ -7,7 +7,7 @@ import time
 def main():
 
     dadrc = pyadrc.adrc.state_space(order=2, delta=0.001,
-                                    b0=1/0.028, t_settle=2, k_eso=10)
+                                    b0=1/0.028, t_settle=1, k_eso=10)
 
     system = pyadrc.QuadAltitude()
 
@@ -21,11 +21,8 @@ def main():
 
     while counter < 10000:
         y = system(u)
-        u = dadrc(y, u, r, False)
-        # [filtered_r, u] = [0, 5]
 
         dadrc.magnitude_lim = (0, 10)
-        print(dadrc.magnitude_lim)
         _y.append(y)
         _u.append(u)
         _setpoint.append(r)
@@ -33,8 +30,8 @@ def main():
         counter = counter + 1
         # time.sleep(0.001)
 
-        if counter == 5000:
-            r = 8
+        if counter >= 5000:
+            u = dadrc(y, u, r, False)
 
     plt.figure()
     plt.subplot(2, 1, 1)
