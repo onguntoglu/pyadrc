@@ -1,13 +1,14 @@
-Welcome to pyadrc's documentation!
-======================================
+.. include:: ../README.rst
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
-   readme
-   installation
-   usage
-   contributing
-   authors
-   history
+   index
+   introduction
+
+Indices and tables
+==================
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
