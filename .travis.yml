@@ -16,8 +16,6 @@ deploy:
     tags: true
     repo: onguntoglu/pyadrc
     python: 3.8
-env:
-  - CODECOV_TOKEN="d9cca756-fce2-470e-8a16-ba974c376002"
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
