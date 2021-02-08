@@ -18,6 +18,11 @@ pyadrc
         :alt: Licence
 
 
+.. image:: https://codecov.io/gh/onguntoglu/pyadrc/branch/master/graph/badge.svg?token=V8WT0V43QD
+      :target: https://codecov.io/gh/onguntoglu/pyadrc
+    
+
+
 Active Disturbance Rejection Control for Python
 
 
