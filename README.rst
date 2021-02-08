@@ -21,6 +21,9 @@ pyadrc
 Active Disturbance Rejection Control for Python
 
 
+A simple, yet powerful control method for when a PID controller just doesn't cut it.
+
+
 * Free software: MIT license
 * Documentation: https://pyadrc.readthedocs.io.
 
@@ -28,12 +31,25 @@ Active Disturbance Rejection Control for Python
 Features
 --------
 
-* TODO
+* Discrete linear time invariant active disturbance rejection controller for digital control systems.
+* Implementation in state-space representation form of first- and second-order ADRC.
+* Quick-start guide and/or theoretical background (for when you don't have anything else to read).
+* A first/second-order LTI model generator and a quadcopter altitude model for experimentation, testing and verification.
 
-Credits
--------
 
-This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
+Installation
+------------
 
-.. _Cookiecutter: https://github.com/audreyr/cookiecutter
-.. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
+Installing **pyadrc** is really simple, just run this command in your terminal:
+
+.. code-block:: console
+
+        pip install pyadrc
+
+or you can clone the repository and install it manually:
+
+.. code-block:: console
+
+        git clone git://github.com/onguntoglu/pyadrc
+        cd pyadrc
+        python setup.py install

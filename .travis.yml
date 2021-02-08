@@ -16,3 +16,6 @@ deploy:
     tags: true
     repo: onguntoglu/pyadrc
     python: 3.8
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
