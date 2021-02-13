@@ -6,6 +6,7 @@
 
    index
    introduction
+   article
 
 Indices and tables
 ==================
