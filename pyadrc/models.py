@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.signal
+import control
 
 
 class QuadAltitude(object):
@@ -35,6 +36,7 @@ class QuadAltitude(object):
         self.vel += acc * self.dt
         self.pos += self.vel * self.dt
 
+        # Include ground
         if self.pos <= 0:
             self.vel = 0
             self.pos = 0
@@ -45,7 +47,7 @@ class QuadAltitude(object):
 class System(object):
 
     def __init__(self, K: float = 1.0, T: float = 1.0,
-                 D: float = None, delta: float = 0.001):
+                 D: float = None, delta: float = 0.001) -> None:
         """Python class to generate a first-or second-order process
         for simulation and verification purposes
 
@@ -94,4 +96,28 @@ class System(object):
 
         self.x = self.A.dot(self.x) + self.B.dot(u)
 
-        return self.C.dot(self.x)
+        return float(self.C.dot(self.x))
+
+
+class RandomSystem(object):
+
+    def __init__(self, states=1) -> None:
+        """Create random discrete state space system
+
+        :param states: number of states, defaults to 1
+        :type states: int, optional
+        """
+
+        system = control.drss(states=states)
+
+        self.A = np.array(system.A)
+        self.B = np.array(system.B)
+        self.C = np.array(system.C)
+        self.D = np.array(system.D)
+
+        self.x = np.zeros((states, 1), dtype=np.float64)
+
+    def __call__(self, u: float) -> float:
+
+        self.x = self.A.dot(self.x) + self.B.dot(u)
+        return float(self.C.dot(self.x) + self.D.dot(u))

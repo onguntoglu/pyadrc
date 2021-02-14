@@ -1,40 +1,36 @@
 import pyadrc
 import matplotlib.pyplot as plt
 
+import time
+
 
 def main():
 
-    # dadrc = pyadrc.adrc.transfer_function(order=2, delta=0.001,
-    #                                      b0=1/10, w_cl=1, k_eso=10)
-
     dadrc = pyadrc.adrc.state_space(order=2, delta=0.001,
-                                    b0=2/25, t_settle=2, k_eso=10)
+                                    b0=1, t_settle=0.1, k_eso=10)
 
-    system = pyadrc.System(K=2.0, T=5., D=0.9, delta=0.001)
+    system = pyadrc.RandomSystem(states=12)
 
     _u, _y, _setpoint = [], [], []
 
-    u = 0
+    u = 1
     y = 0
     counter = 0
 
-    r = 5
+    r = 10
 
     while counter < 1000:
         y = system(u)
-
-        counter = counter + 1
-
-        u = dadrc(y, u, r)
-        # [filtered_r, u] = [0, 5]
+        # u = dadrc(y, u, r, True)
 
         _y.append(y)
         _u.append(u)
         _setpoint.append(r)
 
-        if counter == 500:
-            r = 8
+        counter = counter + 1
 
+        time.sleep(0.001)
+        
     plt.figure()
     plt.subplot(2, 1, 1)
     plt.plot(_y, ds='steps', label='output')

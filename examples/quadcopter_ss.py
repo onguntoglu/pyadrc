@@ -1,13 +1,16 @@
 import pyadrc
 import matplotlib.pyplot as plt
+import numpy as np
 
 import time
 
 
 def main():
+    
+    delta = 0.001
 
-    dadrc = pyadrc.adrc.state_space(order=2, delta=0.001,
-                                    b0=1/0.028, t_settle=1, k_eso=10)
+    dadrc = pyadrc.adrc.state_space(order=2, delta=delta,
+                                    b0=1/0.028, t_settle=0.5, k_eso=10)
 
     system = pyadrc.QuadAltitude()
 
@@ -16,36 +19,36 @@ def main():
     u = 0
     y = 0
     counter = 0
+    r = 10
+    sample = 1000
 
-    r = 5
-
-    while counter < 10000:
+    while counter <= sample:
         y = system(u)
+        u = dadrc(y, u, r, False)
 
-        dadrc.magnitude_lim = (0, 10)
         _y.append(y)
         _u.append(u)
         _setpoint.append(r)
 
         counter = counter + 1
-        # time.sleep(0.001)
 
-        if counter >= 5000:
-            u = dadrc(y, u, r, False)
+    t = np.linspace(0, delta*sample, sample+1)
 
     plt.figure()
     plt.subplot(2, 1, 1)
-    plt.plot(_y, ds='steps', label='output')
-    plt.plot(_setpoint, ds='steps', label='setpoint')
+    plt.plot(t, _y, ds='steps', label='altitude')
+    plt.plot(t, _setpoint, ds='steps', label='reference')
     plt.title('Output')
-    plt.xlabel('Samples')
     plt.legend()
+    plt.grid()
 
     plt.subplot(2, 1, 2)
-    plt.plot(_u, ds='steps', label='input')
-    plt.title('Samples')
+    plt.plot(t, _u, ds='steps', label='thrust')
     plt.legend()
+    plt.xlabel('Time [s]')
+    plt.grid()
     plt.show()
+    
 
 
 if __name__ == "__main__":
