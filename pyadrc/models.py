@@ -1,6 +1,5 @@
 import numpy as np
 import scipy.signal
-import control
 
 
 class QuadAltitude(object):
@@ -107,6 +106,8 @@ class RandomSystem(object):
         :param states: number of states, defaults to 1
         :type states: int, optional
         """
+
+        import control
 
         system = control.drss(states=states)
 

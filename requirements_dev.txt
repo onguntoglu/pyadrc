@@ -12,4 +12,5 @@ pytest-cov
 codecov
 pytest==4.6.5
 pytest-runner==5.1
+control
 
