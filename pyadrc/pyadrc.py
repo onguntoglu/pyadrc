@@ -9,12 +9,12 @@ from collections import deque
 def saturation(_limits: tuple, _val: float) -> float:
     """Saturation function
 
-    :param _limits: saturation limits (low, high)
-    :type _limits: tuple
-    :param _val: sat(_val)
-    :type _val: float
-    :return: saturated signal
-    :rtype: float
+    Args:
+        _limits (tuple): saturation limits (low, high)
+        _val (float): sat(_val)
+
+    Returns:
+        float: saturated signal
     """
 
     lo, hi = _limits
@@ -54,29 +54,21 @@ class adrc():
             """Discrete linear time-invariant state space implementation\
                 of ADRC
 
-            :param order: first- or second-order ADRC
-            :type order: int
-            :param delta: sampling time in seconds
-            :type delta: float
-            :param b0: gain parameter b0
-            :type b0: float
-            :param t_settle: settling time in seconds, determines\
+            Args:
+                order (int): first- or second-order ADRC
+                delta (float): sampling time in seconds
+                b0 (float): gain parameter b0
+                t_settle (float): settling time in seconds, determines\
                 closed-loop bandwidth
-            :type t_settle: float
-            :param k_eso: observer bandwidth
-            :type k_eso: float
-            :param eso_init: initial state for the extended state observer,\
-                Defaults to False, i.e. x0 = 0, defaults to False
-            :type eso_init: np.array, optional
-            :param r_lim: rate limits for the control\
-                signal, defaults to (None, None)
-            :type r_lim: tuple, optional
-            :param m_lim: magnitude limits for the\
-                control signal, defaults to (None, None)
-            :type m_lim: tuple, optional
-            :param half_gain: half gain tuning for\
-                controller/observer gains, defaults to (False, False)
-            :type half_gain: tuple, optional
+                k_eso (float): observer bandwidth
+                eso_init (np.array, optional): initial state for the extended\
+                    state observer. Defaults to False.
+                r_lim (tuple, optional): rate limits for the\
+                    control signal. Defaults to (None, None).
+                m_lim (tuple, optional): magnitude limits for the\
+                    control signal. Defaults to (None, None).
+                half_gain (tuple, optional): half gain tuning for\
+                    controller/observer gains. Defaults to (False, False).
             """
 
             assert (order == 1) or (order == 2),\
@@ -176,21 +168,22 @@ class adrc():
         def update_eso(self, y: float, ukm1: float):
             """Update the linear extended state observer
 
-            :param y: Current measurement y[k]
-            :type y: float
-            :param ukm1: Previous control signal u[k-1]
-            :type ukm1: float
+            Args:
+                y (float): Current measurement y[k]
+                ukm1 (float): Previous control signal u[k-1]
             """
+
             self.xhat = self.oA.dot(self.xhat) + self.oB.dot(
                 ukm1).reshape(-1, 1) + self.L.dot(y)
 
         def limiter(self, u_control: float) -> float:
             """Implements rate and magnitude limiter
 
-            :param u_control: control signal to be limited
-            :type u_control: float
-            :return: rate and magnitude limited control signal
-            :rtype: float
+            Args:
+                u_control (float): control signal to be limited
+
+            Returns:
+                float: rate and magnitude limited control signal
             """
 
             # Limiting the rate of u (delta_u)
@@ -211,48 +204,52 @@ class adrc():
         def eso_states(self) -> tuple:
             """Returns the states of the linear extended state observer
 
-            :return: States of the linear extended state observer
-            :rtype: tuple
+            Returns:
+                tuple: States of the linear extended state observer
             """
+
             return self.xhat
 
         @property
-        def magnitude_limits(self):
+        def magnitude_limits(self) -> tuple:
             """Returns the magnitude limits of the controller
 
-            :return: Magnitude limits of the controller
-            :rtype: tuple
+            Returns:
+                tuple: Magnitude limits of the controller
             """
+
             return self.m_lim
 
         @magnitude_limits.setter
-        def magnitude_limits(self, lim):
+        def magnitude_limits(self, lim: tuple):
             """Magnitude limitter setter
 
-            :param mag: New magnitude limits
-            :type mag: tuple
+            Args:
+                lim (tuple): New magnitude limits
             """
+
             assert len(lim) == 2
             assert lim[0] < lim[1]
             self.m_lim = lim
-            return
 
         @property
-        def rate_limits(self):
+        def rate_limits(self) -> tuple:
             """Returns the magnitude limits of the controller
 
-            :return: Rate limits of the controller
-            :rtype: tuple
+            Returns:
+                tuple: Rate limits of the controller
             """
+
             return self.r_lim
 
         @rate_limits.setter
-        def rate_limits(self, lim):
+        def rate_limits(self, lim: tuple):
             """Rate limiter setter
 
-            :param lim: New rate limits
-            :type lim: tuple
+            Args:
+                lim (tuple): New rate limits
             """
+
             assert len(lim) == 2
             assert lim[0] < lim[1]
             self.r_lim = lim
@@ -261,16 +258,15 @@ class adrc():
             """Returns value of the control signal depending on current measurements,
             previous control action, reference signal.
 
-            :param y: Current measurement y[k] of the process
-            :type y: float
-            :param u: Previous control signal u[k-1]
-            :type u: float
-            :param r: Current reference signal r[k]
-            :type r: float
-            :param zoh: only update every delta seconds, defaults to False
-            :type zoh: bool, optional
-            :return: Current control signal u[k]
-            :rtype: float
+            Args:
+                y (float): Current measurement y[k] of the process
+                u (float): Previous control signal u[k-1]
+                r (float): Current reference signal r[k]
+                zoh (bool, optional): only update every delta seconds.\
+                    Defaults to False.
+
+            Returns:
+                float: Current control signal u[k]
             """
 
             now = time.monotonic()
