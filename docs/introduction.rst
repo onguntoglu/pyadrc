@@ -95,9 +95,9 @@ We will use a second-order approximation for all our cases and sampling time
 +--------+------------+-------------------+-----------------+
 | Case 1 |  1/0.028   |       0.5         |       10        |
 +--------+------------+-------------------+-----------------+
-| Case 2 |            |                   |                 |
+| Case 2 | 1/0.028/4  |       0.5         |       10        |
 +--------+------------+-------------------+-----------------+
-| Case 3 |            |                   |                 |
+| Case 3 |  1/0.028   |       0.1         |       10        |
 +--------+------------+-------------------+-----------------+
 
 
@@ -105,4 +105,4 @@ We will use a second-order approximation for all our cases and sampling time
 
     Case 1
 
-Lets try the same configuration with an imperfect :math:`b_0 = 1`
+Lets try the same configuration with an imperfect :math:`b_0 = 1/0.028/4`. That is a difference of 120%.
