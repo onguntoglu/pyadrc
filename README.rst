@@ -34,6 +34,7 @@ Features
 
 * Discrete linear time invariant active disturbance rejection controller for digital control systems.
 * Implementation in state-space representation form of first- and second-order ADRC.
+* For practical application - half-gain tuning, magnitude and rate limiter for actuator limitations
 * User guide and/or theoretical background (for when you don't have anything else to read).
 * A first/second-order LTI model generator and a quadcopter altitude model for experimentation, testing and verification.
 
@@ -67,3 +68,13 @@ Licence
 -------
 
 **pyadrc** is licenced under the MIT Licence
+
+Acknowledgements
+----------------
+
+None of this work would be possible without **Gernot Herbst** and his papers:
+
+* *Practical Active Disturbance Rejection Control: Bumpless Transfer, Rate Limitation and Incremental Algorithm*, https://arxiv.org/abs/1908.04610
+* *A Simulative Study on Active Disturbance Rejection Control (ADRC) as a Control Tool for Practitioners*, https://arxiv.org/abs/1908.04596
+* *Transfer Function Analysis and Implementation of Active Disturbance Rejection Control*, https://arxiv.org/abs/2011.01044
+* *Half-Gain Tuning for Active Disturbance Rejection Control*, https://arxiv.org/abs/2003.03986
