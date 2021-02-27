@@ -6,6 +6,8 @@
 
    index
    introduction
+   examples
+   api
    article
 
 Indices and tables
