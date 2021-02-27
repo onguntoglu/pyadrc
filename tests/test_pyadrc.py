@@ -120,12 +120,3 @@ def test_rate_limit(adrc_ss):
     u3 = adrc(0, u2, 30)
 
     assert (u3 - u2) == 5
-
-
-def test_adrc_tf_not_implemented():
-
-    try:
-        adrc_tf = pyadrc.adrc.transfer_function(1, 1, 1, 1, 1)
-        adrc_tf(0, 0)
-    except NotImplementedError:
-        assert True
