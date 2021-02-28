@@ -3,19 +3,20 @@ import scipy.signal
 
 
 class QuadAltitude(object):
+    """Discrete-time model of altitude of a quadcopter
+
+    Parameters
+    ----------
+    dt : float, optional
+        Discretization time (zero-order hold), by default 0.001
+    m : float, optional
+        Mass of the quadcopter, by default 0.028
+    g : float, optional
+        Gravitational acceleration, by default 9.807
+    """
 
     def __init__(self, dt: float = 0.001,
                  m: float = 0.028, g: float = 9.807):
-        """Discrete-time model of altitude of a quadcopter
-
-        :param dt: Discretization time (zero-order hold)
-        in seconds, defaults to 0.001
-        :type delta: float, optional
-        :param m: Mass of the quadcopter, defaults to 0.028
-        :type m: float, optional
-        :param g: Gravitational acceleration, defaults to 9.807
-        :type g: float, optional
-        """
 
         assert isinstance(g, float), 'Gravity needs to be of type float'
         assert isinstance(m, float), 'Mass of quadcopter \
@@ -28,7 +29,20 @@ class QuadAltitude(object):
         self.vel = 0
         self.pos = 0
 
-    def __call__(self, u):
+    def __call__(self, u: float) -> float:
+        """Input port to the quadcopter
+
+        Parameters
+        ----------
+        u : float
+            Thrust of the rotors
+
+        Returns
+        -------
+        float:
+            Current altitude of quadcopter
+
+        """
 
         acc = u * (1/self.m) - self.g
 
@@ -45,21 +59,24 @@ class QuadAltitude(object):
 
 class System(object):
 
+    """Python class to generate a first-or second-order process
+    for simulation and verification purposes
+
+    Parameters
+    ----------
+    K : float, optional
+        system gain, by default 1.0
+    T : float, optional
+        time constant, by default 1.0
+    D : float, optional
+        damping factor, by default None
+    delta : float, optional
+        discretization time in seconds, by default 0.001
+    """
+
     def __init__(self, K: float = 1.0, T: float = 1.0,
                  D: float = None, delta: float = 0.001) -> None:
-        """Python class to generate a first-or second-order process
-        for simulation and verification purposes
 
-        :param K: system gain, defaults to 1.0
-        :type K: float, optional
-        :param T: time constant, defaults to 1.0
-        :type T: float, optional
-        :param D: damping factor, defaults to None
-        :type D: float, optional
-        :param delta: discretization time in seconds,
-        defaults to 0.001
-        :type delta: float, optional
-        """
         assert isinstance(K, float)
         assert isinstance(T, float)
         assert delta > 0, "Sampling time has to be positive"
@@ -87,10 +104,15 @@ class System(object):
     def __call__(self, u: float) -> float:
         """System response w.r.t. control signal u
 
-        :param u: control signal u
-        :type u: float
-        :return: system response y
-        :rtype: float
+        Parameters
+        ----------
+        u : float
+            control signal u
+
+        Returns
+        -------
+        float
+            system response y
         """
 
         self.x = self.A.dot(self.x) + self.B.dot(u)
@@ -103,8 +125,11 @@ class RandomSystem(object):
     def __init__(self, states=1) -> None:
         """Create random discrete state space system
 
-        :param states: number of states, defaults to 1
-        :type states: int, optional
+        Args:
+            states (int, optional): number of states. Defaults to 1.
+
+        Returns:
+            None: [description]
         """
 
         import control
