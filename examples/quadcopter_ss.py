@@ -9,8 +9,8 @@ def main():
 
     delta = 0.001
 
-    dadrc = pyadrc.adrc.state_space(order=2, delta=delta,
-                                    b0=1/0.028, t_settle=1, k_eso=10)
+    dadrc = pyadrc.StateSpace(order=2, delta=delta,
+                              b0=1/0.028, t_settle=1, k_eso=10)
 
     system = pyadrc.QuadAltitude()
 
