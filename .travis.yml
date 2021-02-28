@@ -4,16 +4,15 @@ python:
 - 3.7
 - 3.6
 - 3.5
-install: pip install -U tox-travis 
+install: pip install -U tox-travis
 script: tox
 deploy:
   provider: pypi
   distributions: sdist bdist_wheel
-  user: onguntoglu
+  user: __token__
   password:
-    secure: rejZTI4mVbwC6YvuQ2OWHo3qvLWSuSbfeQEVMfgOjWPERsOg4SWt2F1GMLakYXmVLjtP97chGfnW0Sf/02jKW8J0gaLmTgqSMECqNPgDMmOT5vneTs3lFjn8XFmjLgAy4zFGq0qt5TfMkyDCGalJQBmJiqTTXylQONlebY+v+CYnpCHFL6GVzK4Sum38sXTbdwdR9U4pOIz0E0obdBCPFmrdcgcfi+O4gZEFweM4MYaJKYUaXUiBTo/IOTlogFMw85HBchCXwJ7MDoYmAYjHWSHvCEZoIUD60X6eS+rnrXuNaTKmFhluQ8L7mE+A3HAfEdaifRdweeHTwLpg5aDCo7W971h04DzdNaabdAaC1dxPaogiJbKg3srg85Jo1dX2mSUeSRPhXia7f83LddfqOTwVSHQ8ItBB3LuEBUV+yLTNW18To8RC6c588a55pRDB7okR/EDYx5MCuI2zPrR6J0QGM6k2qkZ+ZjpGwiILoXOpjI4wxvLZ3aiLsVJP61UXQUtdHSlwuqMu5OGIq9pU/BQ2azqmkmLtA5/mxqMo97wU0pNuLW5iRKbZXdNbvZKdHigEC1oxRwaBipo+qBgOldWLvuUJDCfAEX4pcb6xOmwvs5Rr6maH6yR84TAU88TQecKE0clhP75+p+ZJ+fLQPRrdj110YG97NzINfE/h/oU=
+    secure: HNeizOxkMuYNDNQ5TJdWmLvTBlyjXsB853B9HPffVnJmD3JvnhM/b51t8SgKsxYr5PIzhhTz3DjsxpfAgxL3J7mv19hhRProjQTFzOgY6qDyGabtUOLJ+p4oIRlJgxTrJzbRCt22M826Es9J9YOc9rHMi+Ru/TMhXprCjl6721RL+Zg4lYO0jTsPMvXZ7mh3ifovTy9+Qw7wlXPwS9aS0/P2GPgJz6vCZWTZPHRk95p7IkqaZlsyXBnaL0F5mM9jLb/eS4nOuUZKOxUoEJ6gxx5BGDrv85VZVbwMxhDom0T2dciHBhtXF7wNiLRqAz4cyAqRdtLcqHpyzxKrtscka1HtGA3Dkky6pG1oUXHJFKROchvd7Lr6d1qcFODMCi3LljwbIdeUnHURkF2EWsMzf8V9dZ9YMXk92B123Ptj1LDLEMwOgmfWmBVJmHrFIKvNdOs4kihaenIrRzT8CA4iKZvcBtx+hrz/BnwfF/A/7glrhkq9EIluGCguC10Jk9g5FRa8h1NEdQhDAA6AV/t6LQwXhrIH7ZP/ZSxTXTgriphdpdexEqTmoyDQ+18BeeU/bu6bESTM896qpQdRciunJNrpO7aBWocqA0WforjV8uvi2qbGRETXDhF0M4thKvkkZMyhuD8DjwOEXLI/Neob6vpeSz9afYoHY0QjOWxrOwA=
   on:
     tags: true
     repo: onguntoglu/pyadrc
     python: 3.8
-  
