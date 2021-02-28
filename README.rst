@@ -1,6 +1,6 @@
-======
-pyadrc
-======
+==================================
+Welcome to pyadrc's Documentation!
+==================================
 
 
 .. image:: https://img.shields.io/pypi/v/pyadrc.svg
@@ -13,14 +13,17 @@ pyadrc
         :target: https://pyadrc.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
 
+.. image:: https://codecov.io/gh/onguntoglu/pyadrc/branch/master/graph/badge.svg?token=V8WT0V43QD
+      :target: https://codecov.io/gh/onguntoglu/pyadrc
+      :alt: Codecov
+
 .. image:: https://img.shields.io/github/license/onguntoglu/pyadrc.svg
         :target: https://github.com/onguntoglu/pyadrc/blob/master/LICENSE
         :alt: Licence
 
-
-.. image:: https://codecov.io/gh/onguntoglu/pyadrc/branch/master/graph/badge.svg?token=V8WT0V43QD
-      :target: https://codecov.io/gh/onguntoglu/pyadrc
-    
+.. image:: https://pepy.tech/badge/pyadrc
+        :target: https://pepy.tech/project/pyadrc
+        :alt: Downloads
 
 
 Active Disturbance Rejection Control for Python
@@ -64,10 +67,12 @@ Although ADRC is more complex than a standard PID controller, it can definitely 
 
 If you are just interested in using the control method, head over to :ref:`introduction-label`. However, if you want to learn more about the math and control theory, check out :ref:`article-label` (written by me).
 
+
 Licence
 -------
 
 **pyadrc** is licenced under the MIT Licence
+
 
 Acknowledgements
 ----------------

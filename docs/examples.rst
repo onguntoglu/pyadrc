@@ -46,5 +46,3 @@ We will use a second-order approximation for all our cases and sampling time
 .. figure:: figs/case1.png
 
     Case 1
-
-Lets try the same configuration with an imperfect :math:`b_0 = 1/0.028/4`.

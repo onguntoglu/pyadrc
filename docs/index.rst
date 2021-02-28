@@ -1,13 +1,11 @@
-.. include:: ../README.rst
+.. include:: readme.rst
 
 .. toctree::
-   :maxdepth: 1
-   :caption: Contents:
+   :hidden:
 
-   index
    introduction
-   examples
    api
+   examples
    article
 
 Indices and tables

@@ -1,8 +1,12 @@
+import sys
+
 """Top-level package for pyadrc."""
 
 __author__ = """Ongun Türkcüoglu"""
 __email__ = 'onguntoglu@gmail.com'
-__version__ = '0.1.0'
+__version__ = '0.2.0'
 
-from .pyadrc import adrc, saturation
+from .pyadrc import StateSpace, saturation
 from .models import QuadAltitude, System
+
+__all__ = ['StateSpace', '__version__']
