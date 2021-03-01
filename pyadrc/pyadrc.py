@@ -9,7 +9,7 @@ basic knowledge about PID control, observers and state-feedback.
 import numpy as np
 import time
 
-# from collections import deque
+from collections import deque
 
 
 def saturation(_limits: tuple, _val: float) -> float:
@@ -309,3 +309,161 @@ class StateSpace():
         self._last_output = float(u)
         self._last_time = now
         return float(u)
+
+
+class TransferFunction(object):
+
+    """Discrete time linear active disturbance rejection control\
+        in transfer function representation
+
+    Parameters
+    ----------
+    order : int
+        first- or second-order ADRC
+    delta : float
+        sampling time in seconds
+    b0 : float
+        modelling parameter b0
+    w_cl : float
+        desired closed-loop bandwidth
+    k_eso : float
+        observer bandwidth
+    eso_init : np.array, optional
+        initial state for the extended state observer, by default False
+    r_lim : tuple, optional
+        rate limits for the control output, by default (None, None)
+    m_lim : tuple, optional
+        magnitude limits for the control output, by default (None, None)
+    half_gain : tuple, optional
+        half gain tuning for controller/observer gains,\
+            by default (False, False)
+    """
+
+    def __init__(self, order: int, delta: float, b0: float,
+                 w_cl: float, k_eso: float, eso_init: np.array = False,
+                 r_lim: tuple = (None, None),
+                 m_lim: tuple = (None, None),
+                 half_gain: tuple = (False, False)):
+
+        self.b0 = b0
+        zESO = np.exp(-k_eso * w_cl * delta)
+
+        self.integrator = 0.
+
+        self.order = order
+
+        if order == 1:
+
+            # Controller gains
+            k1 = w_cl
+
+            # Observer gains
+            l1 = 1 - zESO**2
+            l2 = (1 / delta) * (1 - zESO)**2
+
+            self.alpha1 = (delta * k1 - 1) * (1 - l1)
+            self.beta0 = (1 / b0) * (k1 * l1 + l2)
+            self.beta1 = (1 / b0) * (delta * k1 * l2 - k1 * l1 - l2)
+            self.gam0 = k1 / (k1 * l1 + l2)
+            self.gam1 = k1 * (delta * l2 + l1 - 2) / (k1 * l1 + l2)
+            self.gam2 = k1 * (1 - l1) / (k1 * l1 + l2)
+
+            self.prefilt_x = deque([0, 0], maxlen=2)
+            self.prefilt_y = deque([0], maxlen=1)
+            self.ctrl_in = deque([0], maxlen=1)
+            self.ctrl_out = deque([0], maxlen=1)
+
+        elif order == 2:
+
+            k1 = w_cl**2
+            k2 = 2 * w_cl
+
+            l1 = 1 - zESO**3
+            l2 = (3 / (2 * delta)) * (1 - zESO)**2 * (1 + zESO)
+            l3 = (1 / delta**2) * (1 - zESO)**3
+
+            self.alpha1 = (delta ** 2 / 2) * (
+                k1 - k1 * l1 - k2 * l2) + delta * k2 + delta * l2 + l1 - 2
+
+            self.alpha2 = (((delta**2 * k1) / 2) - delta * k2 + 1) * (1 - l1)
+
+            self.beta0 = (1 / b0) * (k1 * l1 + k2 * l2 + l3)
+
+            self.beta1 = (1 / b0) * (((
+                delta**2 * k1 * l3) / 2) + delta * k1 * l2 + delta * k2 * l3 - 2 * (k1 * l1 + k2 * l2 + l3))
+
+            self.beta2 = (1 / b0) * (((
+                delta**2 * k1 * l3) / 2) - delta * k1 * l2 - delta * k2 * l3 + (k1 * l1 + k2 * l2 + l3))
+
+            self.gam0 = k1 / (k1 * l1 + k2 * l2 + l3)
+
+            self.gam1 = (k1 * (delta**2 * l3 + 2 * delta * l2 + 2 * l1 - 6)) / (k1 * l1 + k2 * l2 + l3)
+
+            self.gam2 = (k1 * (delta**2 * l3 - 2 * delta * l2 - 4 * l1 + 6)) / (k1 * l1 + k2 * l2 + l3)
+
+            self.gam3 = (k1 * (l1 - 1)) / (k1 * l1 + k2 * l2 + l3)
+
+            self.prefilt_x = deque([0, 0, 0], maxlen=3)
+            self.prefilt_y = deque([0, 0], maxlen=2)
+            self.ctrl_in = deque([0, 0], maxlen=2)
+            self.ctrl_out = deque([0, 0], maxlen=2)
+
+    def _ref_prefilter(self, x):
+        """Filter the reference signal"""
+
+        if self.order == 1:
+
+            y = self.gam0 * x +\
+                self.gam1 * self.prefilt_x[0] +\
+                self.gam2 * self.prefilt_x[1] -\
+                (self.beta1 / self.beta0) * self.prefilt_y[0]
+
+        else:
+
+            y = self.gam0 * x +\
+                self.gam1 * self.prefilt_x[0] +\
+                self.gam2 * self.prefilt_x[1] +\
+                self.gam3 * self.prefilt_x[2] -\
+                (self.beta1 / self.beta0) * self.prefilt_y[0] -\
+                (self.beta2 / self.beta0) * self.prefilt_y[1]
+
+        self.prefilt_y.appendleft(y)
+        self.prefilt_x.appendleft(x)
+
+        return y
+
+    def _c_fb(self, x):
+
+        if self.order == 1:
+
+            y = self.beta0 * x + \
+                self.beta1 * self.ctrl_in[0] -\
+                self.alpha1 * self.ctrl_out[0]
+
+        else:
+
+            y = self.beta0 * x + \
+                self.beta1 * self.ctrl_in[0] + \
+                self.beta2 * self.ctrl_in[1] - \
+                self.alpha1 * self.ctrl_out[0] - \
+                self.alpha2 * self.ctrl_out[1]
+
+        self.ctrl_in.appendleft(x)
+        self.ctrl_out.appendleft(y)
+
+        self.integrator += y
+
+        return self.integrator
+
+    def __call__(self, y, r):
+        """Update the linear ADRC controller
+        Args:
+            y (float): Current measurement (time k) of the process
+            r (float): reference (setpoint)
+        Returns:
+            u (float): Control signal u
+        """
+
+        filt_r = self._ref_prefilter(r)
+
+        return filt_r, self._c_fb(filt_r - y)
