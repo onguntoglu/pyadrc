@@ -4,6 +4,7 @@
    :hidden:
 
    introduction
+   manuel
    api
    examples
    article
