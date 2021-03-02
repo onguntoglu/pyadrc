@@ -413,19 +413,19 @@ class TransferFunction(object):
 
         if self.order == 1:
 
-            y = self.gam0 * x +\
-                self.gam1 * self.prefilt_x[0] +\
-                self.gam2 * self.prefilt_x[1] -\
-                (self.beta1 / self.beta0) * self.prefilt_y[0]
+            y = self.gam0 * x \
+                + self.gam1 * self.prefilt_x[0] \
+                + self.gam2 * self.prefilt_x[1] \
+                - (self.beta1 / self.beta0) * self.prefilt_y[0]
 
         else:
 
-            y = self.gam0 * x +\
-                self.gam1 * self.prefilt_x[0] +\
-                self.gam2 * self.prefilt_x[1] +\
-                self.gam3 * self.prefilt_x[2] -\
-                (self.beta1 / self.beta0) * self.prefilt_y[0] -\
-                (self.beta2 / self.beta0) * self.prefilt_y[1]
+            y = self.gam0 * x \
+                + self.gam1 * self.prefilt_x[0] \
+                + self.gam2 * self.prefilt_x[1] \
+                + self.gam3 * self.prefilt_x[2] \
+                - (self.beta1 / self.beta0) * self.prefilt_y[0] \
+                - (self.beta2 / self.beta0) * self.prefilt_y[1]
 
         self.prefilt_y.appendleft(y)
         self.prefilt_x.appendleft(x)
@@ -436,17 +436,17 @@ class TransferFunction(object):
 
         if self.order == 1:
 
-            y = self.beta0 * x + \
-                self.beta1 * self.ctrl_in[0] -\
-                self.alpha1 * self.ctrl_out[0]
+            y = self.beta0 * x \
+                + self.beta1 * self.ctrl_in[0] \
+                - self.alpha1 * self.ctrl_out[0]
 
         else:
 
-            y = self.beta0 * x + \
-                self.beta1 * self.ctrl_in[0] + \
-                self.beta2 * self.ctrl_in[1] - \
-                self.alpha1 * self.ctrl_out[0] - \
-                self.alpha2 * self.ctrl_out[1]
+            y = self.beta0 * x \
+                + self.beta1 * self.ctrl_in[0] \
+                + self.beta2 * self.ctrl_in[1] \
+                - self.alpha1 * self.ctrl_out[0] \
+                - self.alpha2 * self.ctrl_out[1]
 
         self.ctrl_in.appendleft(x)
         self.ctrl_out.appendleft(y)
