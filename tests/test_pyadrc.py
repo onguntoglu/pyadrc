@@ -22,7 +22,8 @@ def adrc_ss():
                  m_lim: tuple = (None, None),
                  half_gain: tuple = (False, False)):
         return pyadrc.StateSpace(
-            order, delta, b0, t_settle, k_eso, eso_init, r_lim, m_lim, half_gain)
+            order, delta, b0, t_settle,
+            k_eso, eso_init, r_lim, m_lim, half_gain)
     return _adrc_ss
 
 

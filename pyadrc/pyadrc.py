@@ -9,7 +9,7 @@ basic knowledge about PID control, observers and state-feedback.
 import numpy as np
 import time
 
-from collections import deque
+# from collections import deque
 
 
 def saturation(_limits: tuple, _val: float) -> float:
@@ -269,7 +269,7 @@ class StateSpace():
         assert lim[0] < lim[1]
         self.r_lim = lim
 
-    def __call__(self, y: float, u: float, r: float, zoh: bool = False) -> float:
+    def __call__(self, y: float, u: float, r: float, zoh: bool = False):
         """Returns value of the control signal depending on current measurements,
         previous control action, reference signal.
 
@@ -299,7 +299,7 @@ class StateSpace():
                 dt = 1e-16
 
         if zoh is True and dt < self.delta and self._last_output is not None:
-            # Return last output of the controller if not enough time has passed
+            # Return last output of the controller if dt < delta
             return self._last_output
 
         u = (self.Kp / self.b0) * r - self.w.T @ self.xhat
@@ -319,7 +319,7 @@ class TransferFunction(object):
     Parameters
     ----------
     order : int
-        first- or second-order ADRC
+        first- or second-order ADRC TF
     delta : float
         sampling time in seconds
     b0 : float
@@ -327,9 +327,9 @@ class TransferFunction(object):
     w_cl : float
         desired closed-loop bandwidth
     k_eso : float
-        observer bandwidth
+        observer bandwidth is parametrized as k_eso-multiple faster than w_cl
     eso_init : np.array, optional
-        initial state for the extended state observer, by default False
+        initial state for the extended state observer, by default None
     r_lim : tuple, optional
         rate limits for the control output, by default (None, None)
     m_lim : tuple, optional
@@ -340,120 +340,183 @@ class TransferFunction(object):
     """
 
     def __init__(self, order: int, delta: float, b0: float,
-                 w_cl: float, k_eso: float, eso_init: np.array = False,
+                 w_cl: float, k_eso: float, eso_init: np.array = None,
                  r_lim: tuple = (None, None),
                  m_lim: tuple = (None, None),
-                 half_gain: tuple = (False, False)):
+                 half_gain: tuple = (False, False), method='general_terms'):
 
-        self.b0 = b0
+        assert order == 1 or order == 2, 'First- and second-order ADRC TF\
+            implemented'
+
+        # Define attributes
+        self.order = order
         zESO = np.exp(-k_eso * w_cl * delta)
 
-        self.integrator = 0.
+        self.params = self._calculate_parameters(order, delta, b0, w_cl, zESO,
+                                                 method=method)
 
-        self.order = order
+    @property
+    def parameter_method(self):
+        return self.method
 
-        if order == 1:
+    @parameter_method.setter
+    def parameter_method(self, str_method):
+        assert str_method == 'general_terms' or str_method == 'bandwidth'
+        self.method = str_method
 
-            # Controller gains
-            k1 = w_cl
+    @property
+    def parameters(self):
+        return self.params
 
-            # Observer gains
-            l1 = 1 - zESO**2
-            l2 = (1 / delta) * (1 - zESO)**2
+    def _calculate_parameters(self, order, delta, b0,
+                              w_cl, zESO, method='general_terms'):
 
-            self.alpha1 = (delta * k1 - 1) * (1 - l1)
-            self.beta0 = (1 / b0) * (k1 * l1 + l2)
-            self.beta1 = (1 / b0) * (delta * k1 * l2 - k1 * l1 - l2)
-            self.gam0 = k1 / (k1 * l1 + l2)
-            self.gam1 = k1 * (delta * l2 + l1 - 2) / (k1 * l1 + l2)
-            self.gam2 = k1 * (1 - l1) / (k1 * l1 + l2)
+        """Calculate the coefficients of num and den of TransferFunction ADRC,
+        using either general terms or bandwidth parameterization
 
-            self.prefilt_x = deque([0, 0], maxlen=2)
-            self.prefilt_y = deque([0], maxlen=1)
-            self.ctrl_in = deque([0], maxlen=1)
-            self.ctrl_out = deque([0], maxlen=1)
+        Parameters
+        ----------
+        order : int
+            internal variable
+        delta : float
+            internal variable
+        b0 : float
+            internal variable
+        w_cl : float
+            internal variable
+        zESO : float
+            internal variable
+        method : str, optional
+            Calculation via general terms (i.e. controller and observer gains)
+            or bandwidth parametrization, functionally identical,
+            implementation uses general terms to leverage half-gain
+            tuning method, by default 'general_terms'
 
-        elif order == 2:
+        Returns
+        -------
+        list
+            Ordered transfer function parameters
 
-            k1 = w_cl**2
-            k2 = 2 * w_cl
+        Notes
+        -----
+        * For first-order ADRC: [a1, be0, be1, g0, g1, g2]
+        * For second-order ADRC: [a1, a2, be0, be1, be2, g0, g1, g2, g3]
+        """
 
-            l1 = 1 - zESO**3
-            l2 = (3 / (2 * delta)) * (1 - zESO)**2 * (1 + zESO)
-            l3 = (1 / delta**2) * (1 - zESO)**3
+        if method == 'general_terms':
+            if order == 1:
+                # Controller gains
+                k1 = w_cl
 
-            self.alpha1 = (delta ** 2 / 2) * (
-                k1 - k1 * l1 - k2 * l2) + delta * k2 + delta * l2 + l1 - 2
+                # Observer gains
+                l1 = 1 - zESO**2
+                l2 = (1 / delta) * (1 - zESO)**2
 
-            self.alpha2 = (((delta**2 * k1) / 2) - delta * k2 + 1) * (1 - l1)
+                _C_TERM = (k1 * l1 + l2)
 
-            self.beta0 = (1 / b0) * (k1 * l1 + k2 * l2 + l3)
+                a1 = (delta * k1 - 1) * (1 - l1)
+                be0 = (1 / b0) * _C_TERM
+                be1 = (1 / b0) * (delta * k1 * l2 - k1 * l1 - l2)
+                g0 = k1 / _C_TERM
+                g1 = k1 * (delta * l2 + l1 - 2) / _C_TERM
+                g2 = k1 * (1 - l1) / _C_TERM
 
-            self.beta1 = (1 / b0) * (((
-                delta**2 * k1 * l3) / 2) + delta * k1 * l2 + delta * k2 * l3 - 2 * (k1 * l1 + k2 * l2 + l3))
+            elif order == 2:
 
-            self.beta2 = (1 / b0) * (((
-                delta**2 * k1 * l3) / 2) - delta * k1 * l2 - delta * k2 * l3 + (k1 * l1 + k2 * l2 + l3))
+                k1 = w_cl**2
+                k2 = 2 * w_cl
 
-            self.gam0 = k1 / (k1 * l1 + k2 * l2 + l3)
+                l1 = 1 - zESO**3
+                l2 = (3 / (2 * delta)) * (1 - zESO)**2 * (1 + zESO)
+                l3 = (1 / delta**2) * (1 - zESO)**3
 
-            self.gam1 = (k1 * (delta**2 * l3 + 2 * delta * l2 + 2 * l1 - 6)) / (k1 * l1 + k2 * l2 + l3)
+                _C_TERM = (k1 * l1 + k2 * l2 + l3)
 
-            self.gam2 = (k1 * (delta**2 * l3 - 2 * delta * l2 - 4 * l1 + 6)) / (k1 * l1 + k2 * l2 + l3)
+                a1 = ((delta ** 2 / 2) * (k1 - k1 * l1 - k2 * l2)
+                      + delta * k2 + delta * l2 + l1 - 2)
 
-            self.gam3 = (k1 * (l1 - 1)) / (k1 * l1 + k2 * l2 + l3)
+                a2 = ((((delta**2 * k1) / 2) - delta * k2 + 1) * (1 - l1))
 
-            self.prefilt_x = deque([0, 0, 0], maxlen=3)
-            self.prefilt_y = deque([0, 0], maxlen=2)
-            self.ctrl_in = deque([0, 0], maxlen=2)
-            self.ctrl_out = deque([0, 0], maxlen=2)
+                be0 = (1 / b0) * _C_TERM
+
+                be1 = ((1 / b0) * (((delta**2 * k1 * l3) / 2)
+                                   + delta * k1 * l2 + delta
+                                   * k2 * l3 - 2
+                                   * _C_TERM))
+
+                be2 = ((1 / b0) * (((delta**2 * k1 * l3) / 2)
+                                   - delta * k1 * l2 - delta
+                                   * k2 * l3 + _C_TERM))
+
+                g0 = k1 / _C_TERM
+
+                g1 = ((k1 * (delta**2 * l3 + 2 * delta * l2 + 2 * l1 - 6))
+                      / _C_TERM)
+
+                g2 = ((k1 * (delta**2 * l3 - 2 * delta * l2 - 4 * l1 + 6))
+                      / _C_TERM)
+
+                g3 = (k1 * (l1 - 1)) / _C_TERM
+
+        elif method == 'bandwidth':
+            if order == 1:
+
+                _C_TERM = ((delta * w_cl) * (1 - zESO**2) + (1 - zESO)**2)
+
+                a1 = (delta * w_cl - 1) * zESO**2
+
+                be0 = ((1/(b0 * delta)) * _C_TERM)
+
+                be1 = ((1/(b0 * delta)) * ((-2 * delta * w_cl * zESO)
+                                           * (1 - zESO) - (1 - zESO)**2))
+
+                g0 = (delta * w_cl) * _C_TERM
+                g1 = (-2 * delta * w_cl * zESO) * _C_TERM
+                g2 = (delta * w_cl * zESO**2) * _C_TERM
+
+            elif order == 2:
+
+                _C_TERM = (delta**2 * w_cl**2 * (1 - zESO**3)
+                           + 3 * delta * w_cl * (1 - zESO - zESO**2 + zESO**3)
+                           + (1 - zESO)**3)
+
+                a1 = ((1/2) * (delta**2 * w_cl**2 * zESO**3
+                               + delta * w_cl
+                               * (1 + 3 * zESO + 3 * zESO**2 - 3 * zESO**3)
+                               + (1 - 3 * zESO - 3 * zESO**2 + zESO**3)))
+
+                a2 = ((zESO**3 / 2)
+                      * (delta**2 * w_cl**2 - 4 * delta * w_cl + 2))
+
+                be0 = ((1 / (b0 * delta**2)) * _C_TERM)
+
+                be1 = ((1 / (b0 * delta**2))
+                       * (-3 * delta**2 * w_cl**2 * zESO * (1 - zESO**2)
+                          - 4 * delta * w_cl * (1 - 3 * zESO**2 + 2 * zESO**3)
+                          - 2 * (1 - zESO)**3))
+
+                be2 = ((1 / (b0 * delta**2))
+                       * (-3 * delta**2 * w_cl**2 * zESO**2 * (1 - zESO)
+                          + delta * w_cl
+                          * (1 + 3 * zESO - 9 * zESO**2 + 5 * zESO**3)
+                          + (1 - zESO)**3))
+
+                g0 = (delta**2 * w_cl**2) / _C_TERM
+                g1 = (-3 * delta**2 * w_cl**2 * zESO) / _C_TERM
+                g2 = (3 * delta**2 * w_cl**2 * zESO**2) / _C_TERM
+                g3 = (-1 * delta**2 * w_cl**2 * zESO**3) / _C_TERM
+
+        coeff = [a1, be0, be1, g0, g1, g2] if order == 1\
+            else [a1, a2, be0, be1, be2, g0, g1, g2, g3]
+
+        return coeff
 
     def _ref_prefilter(self, x):
         """Filter the reference signal"""
-
-        if self.order == 1:
-
-            y = self.gam0 * x +\
-                self.gam1 * self.prefilt_x[0] +\
-                self.gam2 * self.prefilt_x[1] -\
-                (self.beta1 / self.beta0) * self.prefilt_y[0]
-
-        else:
-
-            y = self.gam0 * x +\
-                self.gam1 * self.prefilt_x[0] +\
-                self.gam2 * self.prefilt_x[1] +\
-                self.gam3 * self.prefilt_x[2] -\
-                (self.beta1 / self.beta0) * self.prefilt_y[0] -\
-                (self.beta2 / self.beta0) * self.prefilt_y[1]
-
-        self.prefilt_y.appendleft(y)
-        self.prefilt_x.appendleft(x)
-
-        return y
+        pass
 
     def _c_fb(self, x):
-
-        if self.order == 1:
-
-            y = self.beta0 * x + \
-                self.beta1 * self.ctrl_in[0] -\
-                self.alpha1 * self.ctrl_out[0]
-
-        else:
-
-            y = self.beta0 * x + \
-                self.beta1 * self.ctrl_in[0] + \
-                self.beta2 * self.ctrl_in[1] - \
-                self.alpha1 * self.ctrl_out[0] - \
-                self.alpha2 * self.ctrl_out[1]
-
-        self.ctrl_in.appendleft(x)
-        self.ctrl_out.appendleft(y)
-
-        self.integrator += y
-
-        return self.integrator
+        pass
 
     def __call__(self, y, r):
         """Update the linear ADRC controller
@@ -463,7 +526,4 @@ class TransferFunction(object):
         Returns:
             u (float): Control signal u
         """
-
-        filt_r = self._ref_prefilter(r)
-
-        return filt_r, self._c_fb(filt_r - y)
+        pass
