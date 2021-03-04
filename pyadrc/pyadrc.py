@@ -269,7 +269,7 @@ class StateSpace():
         assert lim[0] < lim[1]
         self.r_lim = lim
 
-    def __call__(self, y: float, u: float, r: float, zoh: bool = False) -> float:
+    def __call__(self, y: float, u: float, r: float, zoh: bool = False):
         """Returns value of the control signal depending on current measurements,
         previous control action, reference signal.
 
@@ -299,7 +299,7 @@ class StateSpace():
                 dt = 1e-16
 
         if zoh is True and dt < self.delta and self._last_output is not None:
-            # Return last output of the controller if not enough time has passed
+            # Return last output of the controller if dt < delta
             return self._last_output
 
         u = (self.Kp / self.b0) * r - self.w.T @ self.xhat
@@ -319,7 +319,7 @@ class TransferFunction(object):
     Parameters
     ----------
     order : int
-        first- or second-order ADRC
+        first- or second-order ADRC TF
     delta : float
         sampling time in seconds
     b0 : float
@@ -329,7 +329,7 @@ class TransferFunction(object):
     k_eso : float
         observer bandwidth
     eso_init : np.array, optional
-        initial state for the extended state observer, by default False
+        initial state for the extended state observer, by default None
     r_lim : tuple, optional
         rate limits for the control output, by default (None, None)
     m_lim : tuple, optional
@@ -340,120 +340,111 @@ class TransferFunction(object):
     """
 
     def __init__(self, order: int, delta: float, b0: float,
-                 w_cl: float, k_eso: float, eso_init: np.array = False,
+                 w_cl: float, k_eso: float, eso_init: np.array = None,
                  r_lim: tuple = (None, None),
                  m_lim: tuple = (None, None),
                  half_gain: tuple = (False, False)):
 
-        self.b0 = b0
+        assert order == 1 or order == 2, 'First- and second-order ADRC TF\
+            implemented'
+
+        # Define attributes
+        self.order = order
         zESO = np.exp(-k_eso * w_cl * delta)
+
+        self._calculate_coefficients(order, delta, b0, w_cl, k_eso, zESO,
+                                     method='general_terms')
 
         self.integrator = 0.
 
-        self.order = order
+    def _calculate_coefficients(self, order, delta, b0,
+                                w_cl, k_eso, zESO, method='general_terms'):
+        """Calculate the coefficients of num and den of TransferFunction ADRC,
+        using either general terms or bandwidth parameterization
 
-        if order == 1:
+        Parameters
+        ----------
+        method : str
+            Calculation via general terms (i.e. controller and observer gains)
+            or bandwidth parametrization, functionally identical,
+            implementation uses general terms to leverage half-gain
+            tuning method
+        """
 
-            # Controller gains
-            k1 = w_cl
+        if method == 'general_terms':
+            if self.order == 1:
+                # Controller gains
+                k1 = w_cl
 
-            # Observer gains
-            l1 = 1 - zESO**2
-            l2 = (1 / delta) * (1 - zESO)**2
+                # Observer gains
+                l1 = 1 - zESO**2
+                l2 = (1 / delta) * (1 - zESO)**2
 
-            self.alpha1 = (delta * k1 - 1) * (1 - l1)
-            self.beta0 = (1 / b0) * (k1 * l1 + l2)
-            self.beta1 = (1 / b0) * (delta * k1 * l2 - k1 * l1 - l2)
-            self.gam0 = k1 / (k1 * l1 + l2)
-            self.gam1 = k1 * (delta * l2 + l1 - 2) / (k1 * l1 + l2)
-            self.gam2 = k1 * (1 - l1) / (k1 * l1 + l2)
+                _C_TERM = (k1 * l1 + l2)
 
-            self.prefilt_x = deque([0, 0], maxlen=2)
-            self.prefilt_y = deque([0], maxlen=1)
-            self.ctrl_in = deque([0], maxlen=1)
-            self.ctrl_out = deque([0], maxlen=1)
+                a1 = (delta * k1 - 1) * (1 - l1)
+                b0 = (1 / b0) * _C_TERM
+                b1 = (1 / b0) * (delta * k1 * l2 - k1 * l1 - l2)
+                g0 = k1 / _C_TERM
+                g1 = k1 * (delta * l2 + l1 - 2) / _C_TERM
+                g2 = k1 * (1 - l1) / _C_TERM
 
-        elif order == 2:
+            elif order == 2:
 
-            k1 = w_cl**2
-            k2 = 2 * w_cl
+                k1 = w_cl**2
+                k2 = 2 * w_cl
 
-            l1 = 1 - zESO**3
-            l2 = (3 / (2 * delta)) * (1 - zESO)**2 * (1 + zESO)
-            l3 = (1 / delta**2) * (1 - zESO)**3
+                l1 = 1 - zESO**3
+                l2 = (3 / (2 * delta)) * (1 - zESO)**2 * (1 + zESO)
+                l3 = (1 / delta**2) * (1 - zESO)**3
 
-            self.alpha1 = (delta ** 2 / 2) * (
-                k1 - k1 * l1 - k2 * l2) + delta * k2 + delta * l2 + l1 - 2
+                _C_TERM = (k1 * l1 + k2 * l2 + l3)
 
-            self.alpha2 = (((delta**2 * k1) / 2) - delta * k2 + 1) * (1 - l1)
+                a1 = ((delta ** 2 / 2) * (k1 - k1 * l1 - k2 * l2)
+                      + delta * k2 + delta * l2 + l1 - 2)
 
-            self.beta0 = (1 / b0) * (k1 * l1 + k2 * l2 + l3)
+                a2 = ((((delta**2 * k1) / 2) - delta * k2 + 1) * (1 - l1))
 
-            self.beta1 = (1 / b0) * (((
-                delta**2 * k1 * l3) / 2) + delta * k1 * l2 + delta * k2 * l3 - 2 * (k1 * l1 + k2 * l2 + l3))
+                b0 = (1 / b0) * _C_TERM
 
-            self.beta2 = (1 / b0) * (((
-                delta**2 * k1 * l3) / 2) - delta * k1 * l2 - delta * k2 * l3 + (k1 * l1 + k2 * l2 + l3))
+                b1 = ((1 / b0) * (((delta**2 * k1 * l3) / 2)
+                                  + delta * k1 * l2 + delta
+                                  * k2 * l3 - 2
+                                  * _C_TERM))
 
-            self.gam0 = k1 / (k1 * l1 + k2 * l2 + l3)
+                b2 = ((1 / b0) * (((delta**2 * k1 * l3) / 2)
+                                  - delta * k1 * l2 - delta
+                                  * k2 * l3 + _C_TERM))
 
-            self.gam1 = (k1 * (delta**2 * l3 + 2 * delta * l2 + 2 * l1 - 6)) / (k1 * l1 + k2 * l2 + l3)
+                g0 = k1 / _C_TERM
 
-            self.gam2 = (k1 * (delta**2 * l3 - 2 * delta * l2 - 4 * l1 + 6)) / (k1 * l1 + k2 * l2 + l3)
+                g1 = ((k1 * (delta**2 * l3 + 2 * delta * l2 + 2 * l1 - 6))
+                      / _C_TERM)
 
-            self.gam3 = (k1 * (l1 - 1)) / (k1 * l1 + k2 * l2 + l3)
+                g2 = ((k1 * (delta**2 * l3 - 2 * delta * l2 - 4 * l1 + 6))
+                      / _C_TERM)
 
-            self.prefilt_x = deque([0, 0, 0], maxlen=3)
-            self.prefilt_y = deque([0, 0], maxlen=2)
-            self.ctrl_in = deque([0, 0], maxlen=2)
-            self.ctrl_out = deque([0, 0], maxlen=2)
+                g3 = (k1 * (l1 - 1)) / _C_TERM
+
+        elif method == 'bandwidth':
+
+            if order == 1:
+                _C_TERM = ((delta * w_cl) * (1 - zESO**2) + (1 - zESO)**2)
+
+                a1 = (delta * w_cl - 1) * zESO**2
+                b0 = ((1/(b0 * delta))
+                      * ((delta * w_cl) * (1 - zESO**2) + (1 - zESO)**2))
+                b1 = ((1/(b0 * delta))
+                      * ((-2 * delta * w_cl * zESO)
+                         * (1 - zESO) - (1 - zESO)**2))
+
 
     def _ref_prefilter(self, x):
         """Filter the reference signal"""
-
-        if self.order == 1:
-
-            y = self.gam0 * x \
-                + self.gam1 * self.prefilt_x[0] \
-                + self.gam2 * self.prefilt_x[1] \
-                - (self.beta1 / self.beta0) * self.prefilt_y[0]
-
-        else:
-
-            y = self.gam0 * x \
-                + self.gam1 * self.prefilt_x[0] \
-                + self.gam2 * self.prefilt_x[1] \
-                + self.gam3 * self.prefilt_x[2] \
-                - (self.beta1 / self.beta0) * self.prefilt_y[0] \
-                - (self.beta2 / self.beta0) * self.prefilt_y[1]
-
-        self.prefilt_y.appendleft(y)
-        self.prefilt_x.appendleft(x)
-
-        return y
+        pass
 
     def _c_fb(self, x):
-
-        if self.order == 1:
-
-            y = self.beta0 * x \
-                + self.beta1 * self.ctrl_in[0] \
-                - self.alpha1 * self.ctrl_out[0]
-
-        else:
-
-            y = self.beta0 * x \
-                + self.beta1 * self.ctrl_in[0] \
-                + self.beta2 * self.ctrl_in[1] \
-                - self.alpha1 * self.ctrl_out[0] \
-                - self.alpha2 * self.ctrl_out[1]
-
-        self.ctrl_in.appendleft(x)
-        self.ctrl_out.appendleft(y)
-
-        self.integrator += y
-
-        return self.integrator
+        pass
 
     def __call__(self, y, r):
         """Update the linear ADRC controller
