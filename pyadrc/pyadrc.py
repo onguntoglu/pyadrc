@@ -9,7 +9,7 @@ basic knowledge about PID control, observers and state-feedback.
 import numpy as np
 import time
 
-from collections import deque
+# from collections import deque
 
 
 def saturation(_limits: tuple, _val: float) -> float:
@@ -343,7 +343,7 @@ class TransferFunction(object):
                  w_cl: float, k_eso: float, eso_init: np.array = None,
                  r_lim: tuple = (None, None),
                  m_lim: tuple = (None, None),
-                 half_gain: tuple = (False, False)):
+                 half_gain: tuple = (False, False), method='general_terms'):
 
         assert order == 1 or order == 2, 'First- and second-order ADRC TF\
             implemented'
@@ -352,13 +352,24 @@ class TransferFunction(object):
         self.order = order
         zESO = np.exp(-k_eso * w_cl * delta)
 
-        self.method = 'general_terms'
+        self.params = self._calculate_parameters(order, delta, b0, w_cl, zESO,
+                                                 method=method)
 
-        coeff = self._calculate_coefficients(order, delta, b0, w_cl, zESO,
-                                             method=self.method)
+    @property
+    def parameter_method(self):
+        return self.method
 
-    def _calculate_coefficients(self, order, delta, b0,
-                                w_cl, zESO, method='general_terms'):
+    @parameter_method.setter
+    def parameter_method(self, str_method):
+        assert str_method == 'general_terms' or str_method == 'bandwidth'
+        self.method = str_method
+
+    @property
+    def parameters(self):
+        return self.params
+
+    def _calculate_parameters(self, order, delta, b0,
+                              w_cl, zESO, method='general_terms'):
 
         """Calculate the coefficients of num and den of TransferFunction ADRC,
         using either general terms or bandwidth parameterization
@@ -366,15 +377,15 @@ class TransferFunction(object):
         Parameters
         ----------
         order : int
-            [description]
+            internal variable
         delta : float
-            [description]
+            internal variable
         b0 : float
-            [description]
-        w_cl : 
-            [description]
-        zESO : [type]
-            [description]
+            internal variable
+        w_cl : float
+            internal variable
+        zESO : float
+            internal variable
         method : str, optional
             Calculation via general terms (i.e. controller and observer gains)
             or bandwidth parametrization, functionally identical,
@@ -383,13 +394,17 @@ class TransferFunction(object):
 
         Returns
         -------
-        [type]
-            [description]
+        list
+            Ordered transfer function parameters
+
+        Notes
+        -----
+        * For first-order ADRC: [a1, be0, be1, g0, g1, g2]
+        * For second-order ADRC: [a1, a2, be0, be1, be2, g0, g1, g2, g3]
         """
 
-
         if method == 'general_terms':
-            if self.order == 1:
+            if order == 1:
                 # Controller gains
                 k1 = w_cl
 
@@ -511,7 +526,4 @@ class TransferFunction(object):
         Returns:
             u (float): Control signal u
         """
-
-        filt_r = self._ref_prefilter(r)
-
-        return filt_r, self._c_fb(filt_r - y)
+        pass
