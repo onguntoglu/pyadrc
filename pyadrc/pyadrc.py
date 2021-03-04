@@ -327,7 +327,7 @@ class TransferFunction(object):
     w_cl : float
         desired closed-loop bandwidth
     k_eso : float
-        observer bandwidth
+        observer bandwidth is parametrized as k_eso-multiple faster than w_cl
     eso_init : np.array, optional
         initial state for the extended state observer, by default None
     r_lim : tuple, optional
@@ -354,24 +354,39 @@ class TransferFunction(object):
 
         self.method = 'general_terms'
 
-        self._calculate_coefficients(order, delta, b0, w_cl, k_eso, zESO,
-                                     method=self.method)
-
-        self.integrator = 0.
+        coeff = self._calculate_coefficients(order, delta, b0, w_cl, zESO,
+                                             method=self.method)
 
     def _calculate_coefficients(self, order, delta, b0,
-                                w_cl, k_eso, zESO, method='general_terms'):
+                                w_cl, zESO, method='general_terms'):
+
         """Calculate the coefficients of num and den of TransferFunction ADRC,
         using either general terms or bandwidth parameterization
 
         Parameters
         ----------
-        method : str
+        order : int
+            [description]
+        delta : float
+            [description]
+        b0 : float
+            [description]
+        w_cl : 
+            [description]
+        zESO : [type]
+            [description]
+        method : str, optional
             Calculation via general terms (i.e. controller and observer gains)
             or bandwidth parametrization, functionally identical,
             implementation uses general terms to leverage half-gain
-            tuning method
+            tuning method, by default 'general_terms'
+
+        Returns
+        -------
+        [type]
+            [description]
         """
+
 
         if method == 'general_terms':
             if self.order == 1:
