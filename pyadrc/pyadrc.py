@@ -352,8 +352,10 @@ class TransferFunction(object):
         self.order = order
         zESO = np.exp(-k_eso * w_cl * delta)
 
+        self.method = 'general_terms'
+
         self._calculate_coefficients(order, delta, b0, w_cl, k_eso, zESO,
-                                     method='general_terms')
+                                     method=self.method)
 
         self.integrator = 0.
 
@@ -383,8 +385,8 @@ class TransferFunction(object):
                 _C_TERM = (k1 * l1 + l2)
 
                 a1 = (delta * k1 - 1) * (1 - l1)
-                b0 = (1 / b0) * _C_TERM
-                b1 = (1 / b0) * (delta * k1 * l2 - k1 * l1 - l2)
+                be0 = (1 / b0) * _C_TERM
+                be1 = (1 / b0) * (delta * k1 * l2 - k1 * l1 - l2)
                 g0 = k1 / _C_TERM
                 g1 = k1 * (delta * l2 + l1 - 2) / _C_TERM
                 g2 = k1 * (1 - l1) / _C_TERM
@@ -405,16 +407,16 @@ class TransferFunction(object):
 
                 a2 = ((((delta**2 * k1) / 2) - delta * k2 + 1) * (1 - l1))
 
-                b0 = (1 / b0) * _C_TERM
+                be0 = (1 / b0) * _C_TERM
 
-                b1 = ((1 / b0) * (((delta**2 * k1 * l3) / 2)
-                                  + delta * k1 * l2 + delta
-                                  * k2 * l3 - 2
-                                  * _C_TERM))
+                be1 = ((1 / b0) * (((delta**2 * k1 * l3) / 2)
+                                   + delta * k1 * l2 + delta
+                                   * k2 * l3 - 2
+                                   * _C_TERM))
 
-                b2 = ((1 / b0) * (((delta**2 * k1 * l3) / 2)
-                                  - delta * k1 * l2 - delta
-                                  * k2 * l3 + _C_TERM))
+                be2 = ((1 / b0) * (((delta**2 * k1 * l3) / 2)
+                                   - delta * k1 * l2 - delta
+                                   * k2 * l3 + _C_TERM))
 
                 g0 = k1 / _C_TERM
 
@@ -427,17 +429,57 @@ class TransferFunction(object):
                 g3 = (k1 * (l1 - 1)) / _C_TERM
 
         elif method == 'bandwidth':
-
             if order == 1:
+
                 _C_TERM = ((delta * w_cl) * (1 - zESO**2) + (1 - zESO)**2)
 
                 a1 = (delta * w_cl - 1) * zESO**2
-                b0 = ((1/(b0 * delta))
-                      * ((delta * w_cl) * (1 - zESO**2) + (1 - zESO)**2))
-                b1 = ((1/(b0 * delta))
-                      * ((-2 * delta * w_cl * zESO)
-                         * (1 - zESO) - (1 - zESO)**2))
 
+                be0 = ((1/(b0 * delta)) * _C_TERM)
+
+                be1 = ((1/(b0 * delta)) * ((-2 * delta * w_cl * zESO)
+                                           * (1 - zESO) - (1 - zESO)**2))
+
+                g0 = (delta * w_cl) * _C_TERM
+                g1 = (-2 * delta * w_cl * zESO) * _C_TERM
+                g2 = (delta * w_cl * zESO**2) * _C_TERM
+
+            elif order == 2:
+
+                _C_TERM = (delta**2 * w_cl**2 * (1 - zESO**3)
+                           + 3 * delta * w_cl * (1 - zESO - zESO**2 + zESO**3)
+                           + (1 - zESO)**3)
+
+                a1 = ((1/2) * (delta**2 * w_cl**2 * zESO**3
+                               + delta * w_cl
+                               * (1 + 3 * zESO + 3 * zESO**2 - 3 * zESO**3)
+                               + (1 - 3 * zESO - 3 * zESO**2 + zESO**3)))
+
+                a2 = ((zESO**3 / 2)
+                      * (delta**2 * w_cl**2 - 4 * delta * w_cl + 2))
+
+                be0 = ((1 / (b0 * delta**2)) * _C_TERM)
+
+                be1 = ((1 / (b0 * delta**2))
+                       * (-3 * delta**2 * w_cl**2 * zESO * (1 - zESO**2)
+                          - 4 * delta * w_cl * (1 - 3 * zESO**2 + 2 * zESO**3)
+                          - 2 * (1 - zESO)**3))
+
+                be2 = ((1 / (b0 * delta**2))
+                       * (-3 * delta**2 * w_cl**2 * zESO**2 * (1 - zESO)
+                          + delta * w_cl
+                          * (1 + 3 * zESO - 9 * zESO**2 + 5 * zESO**3)
+                          + (1 - zESO)**3))
+
+                g0 = (delta**2 * w_cl**2) / _C_TERM
+                g1 = (-3 * delta**2 * w_cl**2 * zESO) / _C_TERM
+                g2 = (3 * delta**2 * w_cl**2 * zESO**2) / _C_TERM
+                g3 = (-1 * delta**2 * w_cl**2 * zESO**3) / _C_TERM
+
+        coeff = [a1, be0, be1, g0, g1, g2] if order == 1\
+            else [a1, a2, be0, be1, be2, g0, g1, g2, g3]
+
+        return coeff
 
     def _ref_prefilter(self, x):
         """Filter the reference signal"""
