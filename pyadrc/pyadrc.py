@@ -363,6 +363,31 @@ class TransferFunction(object):
     def parameters(self):
         return self.params
 
+    def _create_states(self):
+        """Create state vectors to store past values for transfer functions
+        """
+
+        if self.order == 1:
+
+            # Reference prefilter
+            self.r_k = deque([0, 0], maxlen=2)
+            self.r_yk = deque([0], maxlen=1)
+
+            # Feedback controller
+            self.e_k = deque([0], maxlen=1)
+            self.u_k = deque([0], maxlen=1)
+
+        else:
+
+            # Reference prefilter
+            self.r_k = deque([0, 0, 0], maxlen=3)
+            self.r_yk = deque([0, 0], maxlen=2)
+
+            # Feedback controller
+            self.e_k = deque([0, 0], maxlen=1)
+            self.u_k = deque([0, 0], maxlen=1)
+
+        self.integrator = 0
     def _calculate_coeffs(self):
         """Internal function to calculate the coefficients for the reference
         prefilter and feedback controller (denominator and numerator)
