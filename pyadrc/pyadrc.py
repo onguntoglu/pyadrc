@@ -9,7 +9,7 @@ basic knowledge about PID control, observers and state-feedback.
 import numpy as np
 import time
 
-# from collections import deque
+from collections import deque
 
 
 def saturation(_limits: tuple, _val: float) -> float:
@@ -359,8 +359,40 @@ class TransferFunction(object):
         self.params = self._calculate_parameters(order, delta, b0, w_cl, zESO,
                                                  method=method)
 
+        self._calculate_coeffs()
+        self._create_states_vectors()
+
+    @property
+    def integrator(self):
+        """Get integrator
+
+        Returns
+        -------
+        float
+            integrator output
+        """
+        return self.integrator
+
+    @integrator.setter
+    def integrator(self, value):
+        """Set integrator output to value
+
+        Parameters
+        ----------
+        value : float
+            value to set the integrator
+        """
+        self.integrator = float(value)
+
     @property
     def parameters(self):
+        """Get parameters
+
+        Returns
+        -------
+        dict
+            calculated paramaters
+        """
         return self.params
 
     def _create_states(self):
@@ -388,6 +420,7 @@ class TransferFunction(object):
             self.u_k = deque([0, 0], maxlen=1)
 
         self.integrator = 0
+
     def _calculate_coeffs(self):
         """Internal function to calculate the coefficients for the reference
         prefilter and feedback controller (denominator and numerator)
