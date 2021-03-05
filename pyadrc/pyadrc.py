@@ -337,6 +337,10 @@ class TransferFunction(object):
     half_gain : tuple, optional
         half gain tuning for controller/observer gains,\
             by default (False, False)
+    method : str, optional, 'general_terms' or 'bandwidth'
+        method with which the transfer function parameters are calculated,\
+            functionally identical, but general_terms is used to implement half
+            gain tuning
     """
 
     def __init__(self, order: int, delta: float, b0: float,
@@ -354,15 +358,6 @@ class TransferFunction(object):
 
         self.params = self._calculate_parameters(order, delta, b0, w_cl, zESO,
                                                  method=method)
-
-    @property
-    def parameter_method(self):
-        return self.method
-
-    @parameter_method.setter
-    def parameter_method(self, str_method):
-        assert str_method == 'general_terms' or str_method == 'bandwidth'
-        self.method = str_method
 
     @property
     def parameters(self):
