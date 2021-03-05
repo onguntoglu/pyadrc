@@ -363,6 +363,31 @@ class TransferFunction(object):
     def parameters(self):
         return self.params
 
+    def _calculate_coeffs(self):
+        """Internal function to calculate the coefficients for the reference
+        prefilter and feedback controller (denominator and numerator)
+        Uses the z^-1 notation, coefficients in descending order, i.e
+        z^0, z^-1, ..., z^-n
+        """
+
+        if self.order == 1:
+            fb = {'num': [self.params['be0'], self.params['be1']],
+                  'den': [1, self.params['a1']]}
+            pf = {'num': [self.params['g0'],
+                          self.params['g1'], self.params['g2']],
+                  'den': [1, self.params['be1'] / self.params['be0']]}
+        else:
+            fb = {'num': [self.params['be0'], self.params['be1'],
+                          self.params['be2']],
+                  'den': [1, self.params['a1'], self.params['a2']]}
+            pf = {'num': [self.params['g0'], self.params['g1'],
+                          self.params['g2'], self.params['g3']],
+                  'den': [1, self.params['be1'] / self.params['be0'],
+                          self.params['be2'] / self.params['be0']]}
+
+        self.fb = fb
+        self.pf = pf
+
     def _calculate_parameters(self, order, delta, b0,
                               w_cl, zESO, method='general_terms'):
 
