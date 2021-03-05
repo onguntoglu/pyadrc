@@ -501,10 +501,16 @@ class TransferFunction(object):
                 g2 = (3 * delta**2 * w_cl**2 * zESO**2) / _C_TERM
                 g3 = (-1 * delta**2 * w_cl**2 * zESO**3) / _C_TERM
 
-        coeff = [a1, be0, be1, g0, g1, g2] if order == 1\
-            else [a1, a2, be0, be1, be2, g0, g1, g2, g3]
+        if order == 1:
+            params = {'a1': a1, 'be0': be0,
+                      'be1': be1, 'g0': g0,
+                      'g1': g1, 'g2': g2}
+        else:
+            params = {'a1': a1, 'a2': a2, 'be0': be0,
+                      'be1': be1, 'be2': be2, 'g0': g0,
+                      'g1': g1, 'g2': g2, 'g3': g3}
 
-        return coeff
+        return params
 
     def _ref_prefilter(self, x):
         """Filter the reference signal"""
