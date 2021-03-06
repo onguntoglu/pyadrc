@@ -354,35 +354,36 @@ class TransferFunction(object):
 
         # Define attributes
         self.order = order
+        self.acc = 0.
         zESO = np.exp(-k_eso * w_cl * delta)
 
         self.params = self._calculate_parameters(order, delta, b0, w_cl, zESO,
                                                  method=method)
 
         self._calculate_coeffs()
-        self._create_states_vectors()
+        self._create_states()
 
     @property
-    def integrator(self):
-        """Get integrator
+    def accumulator(self):
+        """Get accumulator
 
         Returns
         -------
         float
-            integrator output
+            accumulator output
         """
-        return self.integrator
+        return self.acc
 
-    @integrator.setter
-    def integrator(self, value):
-        """Set integrator output to value
+    @accumulator.setter
+    def accumulator(self, value):
+        """Set accumulator output to value
 
         Parameters
         ----------
         value : float
-            value to set the integrator
+            value to set the accumulator
         """
-        self.integrator = float(value)
+        self.acc = float(value)
 
     @property
     def parameters(self):
@@ -416,10 +417,67 @@ class TransferFunction(object):
             self.r_yk = deque([0, 0], maxlen=2)
 
             # Feedback controller
-            self.e_k = deque([0, 0], maxlen=1)
-            self.u_k = deque([0, 0], maxlen=1)
+            self.e_k = deque([0, 0], maxlen=2)
+            self.u_k = deque([0, 0], maxlen=2)
 
-        self.integrator = 0
+    def _control_loop(self, y, r_k):
+
+        if self.order == 1:
+
+            # reference prefilter
+            ref_yk = (r_k * self.pf['num'][0]
+                      + self.r_k[0] * self.pf['num'][1]
+                      + self.r_k[1] * self.pf['num'][2]
+                      - self.r_yk[0] * self.pf['den'][1])
+
+            # advance time
+            self.r_k.appendleft(r_k)
+            self.r_yk.appendleft(ref_yk)
+
+            # calculate error
+            e_k = ref_yk - y
+
+            # feedback controller
+            u_k = (e_k * self.fb['num'][0]
+                   + self.e_k[0] * self.fb['num'][1]
+                   - self.u_k[0] * self.fb['den'][1])
+
+            # advance time
+            self.e_k.appendleft(e_k)
+            self.u_k.appendleft(u_k)
+
+        else:  # self.order == 2
+
+            # reference prefilter
+            ref_yk = (r_k * self.pf['num'][0]
+                      + self.r_k[0] * self.pf['num'][1]
+                      + self.r_k[1] * self.pf['num'][2]
+                      + self.r_k[2] * self.pf['num'][3]
+                      - self.r_yk[0] * self.pf['den'][1]
+                      - self.r_yk[1] * self.pf['den'][2])
+
+            # advance time
+            self.r_k.appendleft(r_k)
+            self.r_yk.appendleft(ref_yk)
+
+            # calculate error
+            e_k = ref_yk - y
+
+            # feedback controller
+            u_k = (e_k * self.fb['num'][0]
+                   + self.e_k[0] * self.fb['num'][1]
+                   + self.e_k[1] * self.fb['num'][2]
+                   - self.u_k[0] * self.fb['den'][1]
+                   - self.u_k[1] * self.fb['den'][2])
+
+            # advance time
+            self.e_k.appendleft(e_k)
+            self.u_k.appendleft(u_k)
+
+        # Accumulate feedback controller output
+        self.accumulator = self.accumulator + u_k
+
+        return self.accumulator
 
     def _calculate_coeffs(self):
         """Internal function to calculate the coefficients for the reference
@@ -595,19 +653,20 @@ class TransferFunction(object):
 
         return params
 
-    def _ref_prefilter(self, x):
-        """Filter the reference signal"""
-        pass
-
-    def _c_fb(self, x):
-        pass
-
     def __call__(self, y, r):
-        """Update the linear ADRC controller
-        Args:
-            y (float): Current measurement (time k) of the process
-            r (float): reference (setpoint)
-        Returns:
-            u (float): Control signal u
+        """Control loop call
+
+        Parameters
+        ----------
+        y : float
+            current output signal
+        r : float
+            current reference signal
+
+        Returns
+        -------
+        float
+            control signal to the plant (accumulator output)
         """
-        pass
+
+        return self._control_loop(y, r)
