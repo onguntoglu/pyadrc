@@ -9,7 +9,7 @@ basic knowledge about PID control, observers and state-feedback.
 import numpy as np
 import time
 
-# from collections import deque
+from collections import deque
 
 
 def saturation(_limits: tuple, _val: float) -> float:
@@ -337,6 +337,10 @@ class TransferFunction(object):
     half_gain : tuple, optional
         half gain tuning for controller/observer gains,\
             by default (False, False)
+    method : str, optional, 'general_terms' or 'bandwidth'
+        method with which the transfer function parameters are calculated,\
+            functionally identical, but general_terms is used to implement half
+            gain tuning
     """
 
     def __init__(self, order: int, delta: float, b0: float,
@@ -350,23 +354,155 @@ class TransferFunction(object):
 
         # Define attributes
         self.order = order
+        self.acc = 0.
         zESO = np.exp(-k_eso * w_cl * delta)
 
         self.params = self._calculate_parameters(order, delta, b0, w_cl, zESO,
                                                  method=method)
 
-    @property
-    def parameter_method(self):
-        return self.method
+        self._calculate_coeffs()
+        self._create_states()
 
-    @parameter_method.setter
-    def parameter_method(self, str_method):
-        assert str_method == 'general_terms' or str_method == 'bandwidth'
-        self.method = str_method
+    @property
+    def accumulator(self):
+        """Get accumulator
+
+        Returns
+        -------
+        float
+            accumulator output
+        """
+        return self.acc
+
+    @accumulator.setter
+    def accumulator(self, value):
+        """Set accumulator output to value
+
+        Parameters
+        ----------
+        value : float
+            value to set the accumulator
+        """
+        self.acc = float(value)
 
     @property
     def parameters(self):
+        """Get parameters
+
+        Returns
+        -------
+        dict
+            calculated paramaters
+        """
         return self.params
+
+    def _create_states(self):
+        """Create state vectors to store past values for transfer functions
+        """
+
+        if self.order == 1:
+
+            # Reference prefilter
+            self.r_k = deque([0, 0], maxlen=2)
+            self.r_yk = deque([0], maxlen=1)
+
+            # Feedback controller
+            self.e_k = deque([0], maxlen=1)
+            self.u_k = deque([0], maxlen=1)
+
+        else:
+
+            # Reference prefilter
+            self.r_k = deque([0, 0, 0], maxlen=3)
+            self.r_yk = deque([0, 0], maxlen=2)
+
+            # Feedback controller
+            self.e_k = deque([0, 0], maxlen=2)
+            self.u_k = deque([0, 0], maxlen=2)
+
+    def _control_loop(self, y, r_k):
+
+        if self.order == 1:
+
+            # reference prefilter
+            ref_yk = (r_k * self.pf['num'][0]
+                      + self.r_k[0] * self.pf['num'][1]
+                      + self.r_k[1] * self.pf['num'][2]
+                      - self.r_yk[0] * self.pf['den'][1])
+
+            # advance time
+            self.r_k.appendleft(r_k)
+            self.r_yk.appendleft(ref_yk)
+
+            # calculate error
+            e_k = ref_yk - y
+
+            # feedback controller
+            u_k = (e_k * self.fb['num'][0]
+                   + self.e_k[0] * self.fb['num'][1]
+                   - self.u_k[0] * self.fb['den'][1])
+
+            # advance time
+            self.e_k.appendleft(e_k)
+            self.u_k.appendleft(u_k)
+
+        else:  # self.order == 2
+
+            # reference prefilter
+            ref_yk = (r_k * self.pf['num'][0]
+                      + self.r_k[0] * self.pf['num'][1]
+                      + self.r_k[1] * self.pf['num'][2]
+                      + self.r_k[2] * self.pf['num'][3]
+                      - self.r_yk[0] * self.pf['den'][1]
+                      - self.r_yk[1] * self.pf['den'][2])
+
+            # advance time
+            self.r_k.appendleft(r_k)
+            self.r_yk.appendleft(ref_yk)
+
+            # calculate error
+            e_k = ref_yk - y
+
+            # feedback controller
+            u_k = (e_k * self.fb['num'][0]
+                   + self.e_k[0] * self.fb['num'][1]
+                   + self.e_k[1] * self.fb['num'][2]
+                   - self.u_k[0] * self.fb['den'][1]
+                   - self.u_k[1] * self.fb['den'][2])
+
+            # advance time
+            self.e_k.appendleft(e_k)
+            self.u_k.appendleft(u_k)
+
+        # Accumulate feedback controller output
+        self.accumulator = self.accumulator + u_k
+
+        return self.accumulator
+
+    def _calculate_coeffs(self):
+        """Internal function to calculate the coefficients for the reference
+        prefilter and feedback controller (denominator and numerator)
+        Uses the z^-1 notation, coefficients in descending order, i.e
+        z^0, z^-1, ..., z^-n
+        """
+
+        if self.order == 1:
+            fb = {'num': [self.params['be0'], self.params['be1']],
+                  'den': [1, self.params['a1']]}
+            pf = {'num': [self.params['g0'],
+                          self.params['g1'], self.params['g2']],
+                  'den': [1, self.params['be1'] / self.params['be0']]}
+        else:
+            fb = {'num': [self.params['be0'], self.params['be1'],
+                          self.params['be2']],
+                  'den': [1, self.params['a1'], self.params['a2']]}
+            pf = {'num': [self.params['g0'], self.params['g1'],
+                          self.params['g2'], self.params['g3']],
+                  'den': [1, self.params['be1'] / self.params['be0'],
+                          self.params['be2'] / self.params['be0']]}
+
+        self.fb = fb
+        self.pf = pf
 
     def _calculate_parameters(self, order, delta, b0,
                               w_cl, zESO, method='general_terms'):
@@ -506,24 +642,31 @@ class TransferFunction(object):
                 g2 = (3 * delta**2 * w_cl**2 * zESO**2) / _C_TERM
                 g3 = (-1 * delta**2 * w_cl**2 * zESO**3) / _C_TERM
 
-        coeff = [a1, be0, be1, g0, g1, g2] if order == 1\
-            else [a1, a2, be0, be1, be2, g0, g1, g2, g3]
+        if order == 1:
+            params = {'a1': a1, 'be0': be0,
+                      'be1': be1, 'g0': g0,
+                      'g1': g1, 'g2': g2}
+        else:
+            params = {'a1': a1, 'a2': a2, 'be0': be0,
+                      'be1': be1, 'be2': be2, 'g0': g0,
+                      'g1': g1, 'g2': g2, 'g3': g3}
 
-        return coeff
-
-    def _ref_prefilter(self, x):
-        """Filter the reference signal"""
-        pass
-
-    def _c_fb(self, x):
-        pass
+        return params
 
     def __call__(self, y, r):
-        """Update the linear ADRC controller
-        Args:
-            y (float): Current measurement (time k) of the process
-            r (float): reference (setpoint)
-        Returns:
-            u (float): Control signal u
+        """Control loop call
+
+        Parameters
+        ----------
+        y : float
+            current output signal
+        r : float
+            current reference signal
+
+        Returns
+        -------
+        float
+            control signal to the plant (accumulator output)
         """
-        pass
+
+        return self._control_loop(y, r)
