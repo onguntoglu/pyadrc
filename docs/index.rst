@@ -4,7 +4,7 @@
    :hidden:
 
    introduction
-   manuel
+   user_manual
    api
    examples
    article
