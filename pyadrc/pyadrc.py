@@ -310,6 +310,23 @@ class StateSpace():
         self._last_time = now
         return float(u)
 
+    def reset(self, x0=None):
+        """Resets the extended state observer
+
+        Parameters
+        ----------
+        x0 : np.array, optional
+            new initial state vector for the extended state observer,
+            by default None, i.e. resets to zero
+        """
+
+        nx = len(self.xhat)
+
+        assert len(np.array(x0)) == nx or x0 is None,\
+            "Invalid state vector"
+
+        self.xhat = np.array(x0).reshape(-1, 1)
+
 
 class TransferFunction(object):
 
