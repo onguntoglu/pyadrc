@@ -56,6 +56,13 @@ class QuadAltitude(object):
 
         return self.pos
 
+    def reset(self):
+        """Reset position and velocity to zero
+        """
+
+        self.pos = 0.
+        self.vel = 0.
+
 
 class System(object):
 

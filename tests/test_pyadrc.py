@@ -121,3 +121,19 @@ def test_rate_limit(adrc_ss):
     u3 = adrc(0, u2, 30)
 
     assert (u3 - u2) == 5
+
+
+def test_reset(adrc_ss):
+
+    adrc = adrc_ss(order=1, delta=1, b0=10, t_settle=1, k_eso=1)
+
+    adrc.reset([10, 20])
+    assert np.array_equiv(adrc.eso_states.reshape(-1), np.array([10., 20.]))
+    adrc.reset()
+    assert np.array_equiv(adrc.eso_states.reshape(-1), [0., 0.])
+
+    adrc = adrc_ss(order=2, delta=1, b0=10, t_settle=1, k_eso=1)
+    adrc.reset([10, 20, 30])
+    assert np.array_equiv(adrc.eso_states.reshape(-1), [10., 20., 30.])
+    adrc.reset()
+    assert np.array_equiv(adrc.eso_states.reshape(-1), [0., 0., 0.])
