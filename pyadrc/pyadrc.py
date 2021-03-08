@@ -57,7 +57,7 @@ class StateSpace():
         settling time in seconds, determines closed-loop bandwidth
     k_eso : float
         observer bandwidth
-    eso_init : np.array, optional
+    eso_init : tuple, optional
         initial state for the extended state observer, by default False
     r_lim : tuple, optional
         rate limits for the control signal, by default (None, None)
@@ -74,7 +74,7 @@ class StateSpace():
                  b0: float,
                  t_settle: float,
                  k_eso: float,
-                 eso_init: np.array = False,
+                 eso_init: tuple = False,
                  r_lim: tuple = (None, None),
                  m_lim: tuple = (None, None),
                  half_gain: tuple = (False, False)):
@@ -153,7 +153,7 @@ class StateSpace():
             assert len(eso_init) == nx,\
                 'Length of initial state vector of LESO not compatible\
                     with order'
-            self.xhat = np.array(eso_init).reshape(-1, 1)
+            self.xhat = np.fromiter(eso_init, np.float64).reshape(-1, 1)
 
         self._last_time = None
         self._last_output = None
@@ -219,8 +219,10 @@ class StateSpace():
     def eso_states(self) -> tuple:
         """Returns the states of the linear extended state observer
 
-        Returns:
-            tuple: States of the linear extended state observer
+        Returns
+        -------
+        tuple
+            States of the linear extended state observer
         """
 
         return self.xhat
@@ -229,8 +231,10 @@ class StateSpace():
     def magnitude_limits(self) -> tuple:
         """Returns the magnitude limits of the controller
 
-        Returns:
-            tuple: magnitude limits of the controller
+        Returns
+        -------
+        tuple
+            magnitude limits of the controller
         """
 
         return self.m_lim
@@ -322,10 +326,13 @@ class StateSpace():
 
         nx = len(self.xhat)
 
-        assert len(np.array(x0)) == nx or x0 is None,\
+        assert x0 is None or len(np.fromiter(x0, float)) == nx,\
             "Invalid state vector"
 
-        self.xhat = np.array(x0).reshape(-1, 1)
+        if x0 is None:
+            self.xhat = np.zeros((nx, 1), dtype=np.float64)
+        else:
+            self.xhat = np.fromiter(x0, np.float64).reshape(-1, 1)
 
 
 class TransferFunction(object):
