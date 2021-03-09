@@ -1,6 +1,6 @@
-==================================
-Welcome to pyadrc's Documentation!
-==================================
+======================
+pyadrc's Documentation
+======================
 
 
 .. image:: https://img.shields.io/pypi/v/pyadrc.svg
@@ -58,14 +58,6 @@ or you can clone the repository and install it manually:
         git clone git://github.com/onguntoglu/pyadrc
         cd pyadrc
         python setup.py install
-
-
-Guides
-------
-
-Although ADRC is more complex than a standard PID controller, it can definitely be applied to various projects with relative ease. It is certainly advantageous to have some background in classical and modern control theory, which are commonly taught in undergradute electrical and/or computer engineering courses.
-
-If you are just interested in using the control method, head over to Section **Introduction**. However, if you want to learn more about the math and control theory, check out **Article** (written by me).
 
 
 Licence
