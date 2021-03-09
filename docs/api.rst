@@ -1,11 +1,11 @@
-=============
-API reference
-=============
+.. _api-label:
+
+===
+API
+===
 
 pyadrc.pyadrc
 -------------
-
-Includes ADRC 
 
 .. automodule:: pyadrc.pyadrc
    :members:
