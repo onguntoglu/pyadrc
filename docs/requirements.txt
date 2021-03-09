@@ -4,3 +4,4 @@ pyadrc
 pydata-sphinx-theme
 ipykernel
 nbsphinx
+numpydoc
