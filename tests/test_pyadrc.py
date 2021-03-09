@@ -101,7 +101,7 @@ def test_magnitude_limit(adrc_ss):
 
     assert u1 == 5
 
-    adrc.magnitude_limits = (0, 10)
+    adrc.magnitude_limiter = (0, 10)
     u2 = adrc(0, u1, 30)
 
     assert u2 == 10
@@ -116,7 +116,7 @@ def test_rate_limit(adrc_ss):
 
     assert (u2 - u1) == 1
 
-    adrc.rate_limits = (0, 5)
+    adrc.rate_limiter = (0, 5)
 
     u3 = adrc(0, u2, 30)
 
