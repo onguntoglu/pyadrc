@@ -4,9 +4,9 @@
    :hidden:
 
    introduction
-   user_manual
+   getting_started
+   notebooks
    api
-   examples
    article
 
 Indices and tables

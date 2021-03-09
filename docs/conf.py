@@ -32,6 +32,7 @@ import pyadrc
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
+    'numpydoc',
     'nbsphinx',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
@@ -40,11 +41,12 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
+    'sphinx_togglebutton'
 ]
 
-napoleon_google_docstring = False
-napoleon_use_param = False
-napoleon_use_ivar = True
+# napoleon_google_docstring = False
+# napoleon_use_param = False
+# napoleon_use_ivar = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -62,6 +64,9 @@ master_doc = 'index'
 project = 'pyadrc'
 copyright = "2021, Ongun Türkcüoglu"
 author = "Ongun Türkcüoglu"
+
+numpydoc_show_class_members = False
+autodoc_typehints = "none"
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -96,12 +101,15 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
+
+html_theme = 'alabaster'
+"""
 html_theme = 'pydata_sphinx_theme'
 html_theme_options = {
     "github_url": "https://github.com/onguntoglu/pyadrc",
     "show_prev_next": False,
     "search_bar_position": "navbar",
-}
+}"""
 
 # Theme options are theme-specific and customize the look and feel of a
 # theme further.  For a list of options available for each theme, see the

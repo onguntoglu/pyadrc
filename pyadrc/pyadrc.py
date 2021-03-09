@@ -228,7 +228,7 @@ class StateSpace():
         return self.xhat
 
     @property
-    def magnitude_limits(self) -> tuple:
+    def magnitude_limiter(self) -> tuple:
         """Returns the magnitude limits of the controller
 
         Returns
@@ -239,12 +239,14 @@ class StateSpace():
 
         return self.m_lim
 
-    @magnitude_limits.setter
-    def magnitude_limits(self, lim: tuple):
+    @magnitude_limiter.setter
+    def magnitude_limiter(self, lim: tuple):
         """Magnitude limitter setter
 
-        Args:
-            lim (tuple): New magnitude limits
+        Parameters
+        ----------
+            lim : tuple
+                New magnitude limits
         """
 
         assert len(lim) == 2
@@ -252,21 +254,25 @@ class StateSpace():
         self.m_lim = lim
 
     @property
-    def rate_limits(self) -> tuple:
+    def rate_limiter(self) -> tuple:
         """Returns the rate limits of the controller
 
-        Returns:
-            tuple: Rate limits of the controller
+        Returns
+        -------
+        tuple
+            Rate limits of the controller
         """
 
         return self.r_lim
 
-    @rate_limits.setter
-    def rate_limits(self, lim: tuple):
+    @rate_limiter.setter
+    def rate_limiter(self, lim: tuple):
         """Rate limiter setter
 
-        Args:
-            lim (tuple): New rate limits
+        Parameters
+        ----------
+        lim : tuple
+            New rate limits
         """
 
         assert len(lim) == 2
