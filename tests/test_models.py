@@ -3,13 +3,12 @@
 import pytest
 import pyadrc
 
+
 @pytest.fixture
-<<<<<<< HEAD
 def quad():
     def _quad(dt=0.001, m=0.028, g=9.807):
         return pyadrc.QuadAltitude(dt, m, g)
     return _quad
-
 
 def test_direction(quad):
     counter = 0
@@ -35,9 +34,3 @@ def test_ground(quad):
     pos, vel, acc = quad.states
 
     assert pos >= 0 and vel == 0 and acc < 0
-=======
-def quadcopter_model():
-    quad = pyadrc.QuadAltitude()
-    return quad
-
->>>>>>> 4a02cc6193d8f34a54149171e7b1cb47ed49126c
