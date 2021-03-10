@@ -1,8 +1,8 @@
 .. _api-label:
 
-===
-API
-===
+=============
+API Reference
+=============
 
 pyadrc.pyadrc
 -------------
