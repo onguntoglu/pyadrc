@@ -67,7 +67,6 @@ author = "Ongun Türkcüoglu"
 # Run docstring validation as part of build process
 numpydoc_validation_checks = {"all", "GL01", "SA04", "RT03"}
 
-
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
 # the built documents.

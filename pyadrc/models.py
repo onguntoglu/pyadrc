@@ -28,6 +28,7 @@ class QuadAltitude(object):
 
         self.vel = 0
         self.pos = 0
+        self.acc = 0
 
     def __call__(self, u: float) -> float:
         """Input port to the quadcopter
@@ -48,6 +49,7 @@ class QuadAltitude(object):
 
         self.vel += acc * self.dt
         self.pos += self.vel * self.dt
+        self.acc = acc
 
         # Include ground
         if self.pos <= 0:
@@ -55,6 +57,28 @@ class QuadAltitude(object):
             self.pos = 0
 
         return self.pos
+
+    @property
+    def states(self):
+        """Return the state of the quadcopter
+        """
+
+        return self.pos, self.vel, self.acc
+
+    @states.setter
+    def states(self, value):
+        """Sets the state of the quadcopter to value
+        value = (pos, vel, acc). If a state is None, it is not changed.
+
+        Parameters
+        ----------
+        value : tuple
+            new state vector of quadcopter
+        """
+
+        self.pos = value[0] if isinstance(value[0], (float, int)) else self.pos
+        self.vel = value[1] if isinstance(value[1], (float, int)) else self.vel
+        self.acc = value[2] if isinstance(value[2], (float, int)) else self.acc
 
     def reset(self):
         """Reset position and velocity to zero
