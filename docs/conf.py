@@ -32,17 +32,17 @@ import pyadrc
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
-    'numpydoc',
-    'nbsphinx',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.doctest',
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
-    'sphinx.ext.ifconfig',
+    'numpydoc',
     'sphinx.ext.viewcode',
 ]
 
+numpydoc_show_class_members = False
+autodoc_typehints = "none"
 # napoleon_google_docstring = False
 # napoleon_use_param = False
 # napoleon_use_ivar = True
@@ -64,8 +64,8 @@ project = 'pyadrc'
 copyright = "2021, Ongun Türkcüoglu"
 author = "Ongun Türkcüoglu"
 
-# numpydoc_show_class_members = False
-autodoc_typehints = "none"
+# Run docstring validation as part of build process
+numpydoc_validation_checks = {"all", "GL01", "SA04", "RT03"}
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -124,6 +124,7 @@ html_static_path = ['_static']
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'pyadrcdoc'
+
 
 
 # -- Options for LaTeX output ------------------------------------------

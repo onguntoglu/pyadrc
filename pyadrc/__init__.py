@@ -9,4 +9,5 @@ __version__ = '0.2.1'
 from .pyadrc import StateSpace, TransferFunction, saturation
 from .models import QuadAltitude, System
 
-__all__ = ['StateSpace', 'TransferFunction', '__version__']
+__all__ = ['StateSpace', 'TransferFunction', 'QuadAltitude',
+           'System', '__version__']
