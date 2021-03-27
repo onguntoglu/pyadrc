@@ -213,7 +213,7 @@ class StateSpace():
         float
             float: rate and magnitude limited control signal
         """
-
+    
         # Limiting the rate of u (delta_u)
         delta_u = saturation((self.r_lim[0], self.r_lim[1]),
                              u_control - self.ukm1)
@@ -331,7 +331,7 @@ class StateSpace():
             delta_r = r - self.rkm1
             delta_u = ((self.Kp / self.b0) * delta_r
                        - self.w.T @ self.xhat_delta)
-            u = u + delta_u
+            u = delta_u
 
             self.rkm1 = r
 
