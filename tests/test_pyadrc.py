@@ -33,6 +33,11 @@ def adrc_ss_nominal(adrc_ss):
     return adrc_ss(1, 1, 1, 1, 1)
 
 
+@pytest.fixture
+def adrc_ss_inc_nominal(adrc_ss):
+    return adrc_ss(1, 1, 1, 1, 1, inc_form=True)
+
+
 @pytest.mark.parametrize("limits, val, expected", [
     ((0, 100), 120, 100),
     ((0, 100), -20, 0),

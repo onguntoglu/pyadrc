@@ -174,6 +174,7 @@ class StateSpace():
 
         if self.inc_form is True:
             self.oA = self.oA - np.eye(self.oA.shape[0])
+            self.rkm1 = 0.
 
     def _update_eso(self, y: float, ukm1: float):
         """Update the linear extended state observer
@@ -320,8 +321,17 @@ class StateSpace():
             return self._last_output
 
         self._update_eso(y, u)
-        u = (self.Kp / self.b0) * r - self.w.T @ self.xhat
-        u = self._limiter(u)
+
+        if self.inc_form is False:
+            u = (self.Kp / self.b0) * r - self.w.T @ self.xhat
+            u = self._limiter(u)
+        else:  # self.inc_form is True:
+            delta_r = r - self.rkm1
+            delta_u = ((self.Kp / self.b0) * delta_r
+                       - self.w.T @ self.xhat_delta)
+            u = u + delta_u
+
+            self.rkm1 = r
 
         self._last_output = float(u)
         self._last_time = now
