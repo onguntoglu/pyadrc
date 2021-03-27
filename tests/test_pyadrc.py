@@ -33,6 +33,11 @@ def adrc_ss_nominal(adrc_ss):
     return adrc_ss(1, 1, 1, 1, 1)
 
 
+@pytest.fixture
+def adrc_ss_inc_nominal(adrc_ss):
+    return adrc_ss(1, 1, 1, 1, 1, inc_form=True)
+
+
 @pytest.mark.parametrize("limits, val, expected", [
     ((0, 100), 120, 100),
     ((0, 100), -20, 0),
@@ -127,6 +132,22 @@ def test_rate_limit(adrc_ss):
     u3 = adrc(0, u2, 30)
 
     assert (u3 - u2) == 5
+
+
+def test_both_limiters(adrc_ss):
+
+    adrc = adrc_ss(order=1, delta=1, b0=10, t_settle=1,
+                   k_eso=1, r_lim=(-1, 1), m_lim=(-5, 5))
+    _u = []
+    u = 0
+    counter = 0
+    while counter < 10:
+        u = adrc(0, u, 30)
+        _u.append(u)
+        counter += 1
+
+    assert _u[1] - _u[0] == 1
+    assert max(_u) == 5
 
 
 def test_reset(adrc_ss):

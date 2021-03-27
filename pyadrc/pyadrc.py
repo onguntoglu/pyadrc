@@ -57,6 +57,11 @@ class StateSpace():
         settling time in seconds, determines closed-loop bandwidth
     k_eso : float
         observer bandwidth
+    inc_form : float
+        toggle incremental form of ADRC, by default False. If the incremental
+        form is toggled, the controller will return the incrementation to the
+        current control signal. This value needs to be accumulated by the user.
+        Functionally identical to the non-incremental (normal) form.
     eso_init : tuple, optional
         initial state for the extended state observer, by default False
     r_lim : tuple, optional
@@ -174,6 +179,7 @@ class StateSpace():
 
         if self.inc_form is True:
             self.oA = self.oA - np.eye(self.oA.shape[0])
+            self.rkm1 = 0.
 
     def _update_eso(self, y: float, ukm1: float):
         """Update the linear extended state observer
@@ -207,11 +213,8 @@ class StateSpace():
         float
             float: rate and magnitude limited control signal
         """
-
+    
         # Limiting the rate of u (delta_u)
-        # delta_u = SaturatedInteger(self.r_lim[0], self.r_lim[1],
-        #                            u_control - self.ukm1)
-
         delta_u = saturation((self.r_lim[0], self.r_lim[1]),
                              u_control - self.ukm1)
 
@@ -320,8 +323,17 @@ class StateSpace():
             return self._last_output
 
         self._update_eso(y, u)
-        u = (self.Kp / self.b0) * r - self.w.T @ self.xhat
-        u = self._limiter(u)
+
+        if self.inc_form is False:
+            u = (self.Kp / self.b0) * r - self.w.T @ self.xhat
+            u = self._limiter(u)
+        else:  # self.inc_form is True:
+            delta_r = r - self.rkm1
+            delta_u = ((self.Kp / self.b0) * delta_r
+                       - self.w.T @ self.xhat_delta)
+            u = delta_u
+
+            self.rkm1 = r
 
         self._last_output = float(u)
         self._last_time = now
