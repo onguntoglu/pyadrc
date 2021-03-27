@@ -18,12 +18,13 @@ def check_saturation() -> float:
 @pytest.fixture
 def adrc_ss():
     def _adrc_ss(order, delta, b0, t_settle, k_eso, eso_init: np.array = False,
+                 inc_form: tuple = False,
                  r_lim: tuple = (None, None),
                  m_lim: tuple = (None, None),
                  half_gain: tuple = (False, False)):
         return pyadrc.StateSpace(
             order, delta, b0, t_settle,
-            k_eso, eso_init, r_lim, m_lim, half_gain)
+            k_eso, inc_form, eso_init, r_lim, m_lim, half_gain)
     return _adrc_ss
 
 
@@ -52,7 +53,12 @@ def test_check_saturation(check_saturation, limits, val, expected):
 
 def test_zero(adrc_ss_nominal):
 
-    assert adrc_ss_nominal(1, 1, 0, True) == 0.
+    assert adrc_ss_nominal(0, 0, 0, True) == 0.
+
+
+def test_reference_reached(adrc_ss_nominal):
+
+    assert adrc_ss_nominal(1, 1, 1, True) == 0.
 
 
 @pytest.mark.parametrize("y, r, b0", [

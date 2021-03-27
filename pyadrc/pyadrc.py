@@ -74,6 +74,7 @@ class StateSpace():
                  b0: float,
                  t_settle: float,
                  k_eso: float,
+                 inc_form: bool = False,
                  eso_init: tuple = False,
                  r_lim: tuple = (None, None),
                  m_lim: tuple = (None, None),
@@ -158,6 +159,7 @@ class StateSpace():
         self._last_time = None
         self._last_output = None
         self._last_input = None
+        self.inc_form = inc_form
 
         self._linear_extended_state_observer()
 
@@ -170,8 +172,8 @@ class StateSpace():
         self.oB = self.Bd - self.L @ self.Cd @ self.Bd
         self.oC = self.Cd
 
-        # if self.inc_form is True:
-        #    self.oA = self.oA - np.eye(self.oA.shape[0])
+        if self.inc_form is True:
+            self.oA = self.oA - np.eye(self.oA.shape[0])
 
     def _update_eso(self, y: float, ukm1: float):
         """Update the linear extended state observer
@@ -183,9 +185,14 @@ class StateSpace():
         ukm1 : float
             Previous control signal u[k-1]
         """
+        if self.inc_form is False:
+            self.xhat = self.oA.dot(self.xhat) + self.oB.dot(
+                ukm1).reshape(-1, 1) + self.L.dot(y)
+        else:  # self.inc_form is True
+            self.xhat_delta = self.oA.dot(self.xhat) + self.oB.dot(
+                ukm1).reshape(-1, 1) + self.L.dot(y)
 
-        self.xhat = self.oA.dot(self.xhat) + self.oB.dot(
-            ukm1).reshape(-1, 1) + self.L.dot(y)
+            self.xhat = self.xhat + self.xhat_delta
 
     def _limiter(self, u_control: float) -> float:
         """Implements rate and magnitude limiter
@@ -312,9 +319,9 @@ class StateSpace():
             # Return last output of the controller if dt < delta
             return self._last_output
 
+        self._update_eso(y, u)
         u = (self.Kp / self.b0) * r - self.w.T @ self.xhat
         u = self._limiter(u)
-        self._update_eso(y, u)
 
         self._last_output = float(u)
         self._last_time = now

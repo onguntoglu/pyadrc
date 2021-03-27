@@ -10,6 +10,7 @@ def quad():
         return pyadrc.QuadAltitude(dt, m, g)
     return _quad
 
+
 def test_direction(quad):
     counter = 0
     quad = quad(dt=0.01)
