@@ -57,6 +57,11 @@ class StateSpace():
         settling time in seconds, determines closed-loop bandwidth
     k_eso : float
         observer bandwidth
+    inc_form : float
+        toggle incremental form of ADRC, by default False. If the incremental
+        form is toggled, the controller will return the incrementation to the
+        current control signal. This value needs to be accumulated by the user.
+        Functionally identical to the non-incremental (normal) form.
     eso_init : tuple, optional
         initial state for the extended state observer, by default False
     r_lim : tuple, optional
@@ -210,9 +215,6 @@ class StateSpace():
         """
 
         # Limiting the rate of u (delta_u)
-        # delta_u = SaturatedInteger(self.r_lim[0], self.r_lim[1],
-        #                            u_control - self.ukm1)
-
         delta_u = saturation((self.r_lim[0], self.r_lim[1]),
                              u_control - self.ukm1)
 
