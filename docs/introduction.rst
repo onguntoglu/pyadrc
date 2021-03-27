@@ -117,7 +117,7 @@ Ideally, ADRC is enabled at time t=0, however, in case you need to activate ADRC
 What's next?
 ------------
 
-Head over to :ref:`examples-label` to check out various implementation of the library.
+Head over to :ref:`notebooks-label` to check out various implementation of the library.
 
 Take a look at :ref:`api-label` for a complete documentation of the library.
 
