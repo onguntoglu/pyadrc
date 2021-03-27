@@ -4,13 +4,6 @@
    :hidden:
 
    introduction
-   getting_started
+   usage
    notebooks
    api
-   article
-
-Indices and tables
-==================
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
