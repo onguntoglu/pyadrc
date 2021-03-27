@@ -74,6 +74,7 @@ class StateSpace():
                  b0: float,
                  t_settle: float,
                  k_eso: float,
+                 inc_form: bool = False,
                  eso_init: tuple = False,
                  r_lim: tuple = (None, None),
                  m_lim: tuple = (None, None),
@@ -184,8 +185,8 @@ class StateSpace():
             Previous control signal u[k-1]
         """
 
-        self.xhat = self.oA.dot(self.xhat) + self.oB.dot(
-            ukm1).reshape(-1, 1) + self.L.dot(y)
+            self.xhat = self.oA.dot(self.xhat) + self.oB.dot(
+                ukm1).reshape(-1, 1) + self.L.dot(y)
 
     def _limiter(self, u_control: float) -> float:
         """Implements rate and magnitude limiter
@@ -312,9 +313,9 @@ class StateSpace():
             # Return last output of the controller if dt < delta
             return self._last_output
 
+        self._update_eso(y, u)
         u = (self.Kp / self.b0) * r - self.w.T @ self.xhat
         u = self._limiter(u)
-        self._update_eso(y, u)
 
         self._last_output = float(u)
         self._last_time = now

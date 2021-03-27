@@ -7,8 +7,8 @@ def main():
     # dadrc = pyadrc.adrc.transfer_function(order=2, delta=0.001,
     #                                      b0=1/10, w_cl=1, k_eso=10)
 
-    dadrc = pyadrc.adrc.state_space(order=2, delta=0.001,
-                                    b0=2/25, t_settle=2, k_eso=10)
+    dadrc = pyadrc.StateSpace(order=2, delta=0.001,
+                              b0=2/25, t_settle=0.1, k_eso=10)
 
     system = pyadrc.System(K=2.0, T=5., D=0.9, delta=0.001)
 
