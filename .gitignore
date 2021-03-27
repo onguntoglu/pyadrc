@@ -104,4 +104,4 @@ ENV/
 # IDE settings
 .vscode/
 
-examples
+.examples
