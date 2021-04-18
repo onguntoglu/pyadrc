@@ -213,7 +213,7 @@ class StateSpace():
         float
             float: rate and magnitude limited control signal
         """
-    
+
         # Limiting the rate of u (delta_u)
         delta_u = saturation((self.r_lim[0], self.r_lim[1]),
                              u_control - self.ukm1)
@@ -360,6 +360,94 @@ class StateSpace():
             self.xhat = np.fromiter(x0, np.float64).reshape(-1, 1)
 
 
+class FeedbackTF(object):
+
+    def __init__(self, order: int, delta: float, b0: float,
+                 w_cl: float, k_eso: float) -> None:
+
+        assert order == 1 or order == 2, 'First- and second-order FBTF-ADRC\
+            implemented'
+
+        zESO = np.exp(-k_eso * w_cl * delta)
+
+        if order == 1:
+            self.coeff = {'a1': -2 * zESO, 'a2': zESO**2,
+                          'b0': delta * w_cl * zESO**2 - (1 - zESO)**2,
+                          'b1': - delta * w_cl * zESO**2,
+                          'g0': (1/(b0 * delta)) * (delta * w_cl
+                                                    * (1-zESO**2)
+                                                    + (1 - zESO)**2),
+                          'g1': (1/(b0 * delta)) * (2 * delta * w_cl
+                                                    * (zESO**2 - zESO)
+                                                    - (1 - zESO)**2),
+                          'k': w_cl / b0}
+
+            self.states = {'x1': 0., 'x2': 0.}
+
+        elif order == 2:
+            _GC = 1/(b0 * delta**2)  # coefficient gamma_n constant
+            self.coeff = {'a1': -3 * zESO, 'a2': 3 * zESO**2, 'a3': -zESO**3,
+                          'b0': 0.5 * (- delta * w_cl * zESO**3
+                                       * (4 - delta * w_cl)
+                                       + delta * w_cl * (1 + zESO)**3
+                                       - (1 - zESO)**3),
+                          'b1': 0.5 * (- delta * w_cl
+                                       * (1 + zESO)**3 - (1 - zESO)**3),
+                          'b2': 0.5 * (delta * w_cl * zESO**3
+                                       * (4 - delta * w_cl)),
+                          'g0': _GC * (delta**2 * w_cl**2 * (1 - zESO**3)
+                                       + 3 * delta * w_cl
+                                       * (1 - zESO - zESO**2 + zESO**3)
+                                       + (1 - zESO)**3),
+                          'g1': _GC * (3 * delta**2 * w_cl**2
+                                       * (- zESO + zESO**3)
+                                       + 4 * delta * w_cl
+                                       * (-1 + 3 * zESO**2 - 2*zESO**3)
+                                       - 2 * (1 - zESO)**3),
+                          'g2': _GC * (3 * delta**2 * w_cl**2
+                                       * (zESO**2 - zESO**3)
+                                       + delta * w_cl
+                                       * (1 + 3 * zESO - 9*zESO**2 + 5*zESO**3)
+                                       + (1 - zESO)**3),
+                          'k': w_cl**2 / b0}
+
+            self.states = {'x1': 0., 'x2': 0., 'x3': 0}
+
+    def _limiter(self, u_control: float) -> float:
+        """Implements rate and magnitude limiter
+
+        Parameters
+        ----------
+        u_control : float
+            control signal to be limited
+
+        Returns
+        -------
+        float
+            float: rate and magnitude limited control signal
+        """
+
+        # Limiting the rate of u (delta_u)
+        delta_u = saturation((self.r_lim[0], self.r_lim[1]),
+                             u_control - self.ukm1)
+
+        # Limiting the magnitude of u
+        self.ukm1 = saturation((self.m_lim[0],
+                                self.m_lim[1]),
+                               delta_u + self.ukm1)
+
+        return self.ukm1
+
+    def _combined_tf_output(self):
+        pass
+
+    def _update_xn(self):
+        pass
+
+    def __call__(self):
+        pass
+
+
 class TransferFunction(object):
 
     """Discrete time linear active disturbance rejection control\
@@ -396,7 +484,8 @@ class TransferFunction(object):
                  w_cl: float, k_eso: float, eso_init: np.array = None,
                  r_lim: tuple = (None, None),
                  m_lim: tuple = (None, None),
-                 half_gain: tuple = (False, False), method='general_terms'):
+                 half_gain: tuple = (False, False),
+                 method='general_terms') -> None:
 
         assert order == 1 or order == 2, 'First- and second-order ADRC TF\
             implemented'
