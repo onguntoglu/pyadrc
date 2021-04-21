@@ -4,7 +4,7 @@ import sys
 
 __author__ = """Ongun Türkcüoglu"""
 __email__ = 'onguntoglu@gmail.com'
-__version__ = '0.3.2'
+__version__ = '0.4.0'
 
 from .pyadrc import StateSpace, TransferFunction, FeedbackTF, saturation
 from .models import QuadAltitude, System
