@@ -71,6 +71,11 @@ class StateSpace():
     half_gain : tuple, optional
         half gain tuning for controller/observer gains,\
         by default (False, False)
+
+    References
+    ----------
+    .. [1] G. Herbst, "Practical active disturbance rejection control:\
+        Bumpless transfer, rate limitation, and incremental algorithm", 
     """
 
     def __init__(self,
@@ -362,12 +367,22 @@ class StateSpace():
 
 class FeedbackTF(object):
 
-    def __init__(self, order: int, delta: float, b0: float,
-                 w_cl: float, k_eso: float) -> None:
+    def __init__(self,
+                 order: int,
+                 delta: float,
+                 b0: float,
+                 w_cl: float,
+                 k_eso: float,
+                 x_init: tuple = False,
+                 r_lim: tuple = (None, None),
+                 m_lim: tuple = (None, None)) -> None:
 
         assert order == 1 or order == 2, 'First- and second-order FBTF-ADRC\
             implemented'
 
+        self.order = order
+        self.delta = delta
+        
         zESO = np.exp(-k_eso * w_cl * delta)
 
         if order == 1:
@@ -413,6 +428,80 @@ class FeedbackTF(object):
 
             self.states = {'x1': 0., 'x2': 0., 'x3': 0}
 
+        # Initialize limiters
+        self.ukm1 = 0.
+        self.r_lim = r_lim
+        self.m_lim = m_lim
+
+        # Zero-order hold variables
+        self._last_time = None
+        self._last_output = None
+        self._last_input = None
+
+    @property
+    def x_states(self) -> tuple:
+        """Returns the storage variables
+
+        Returns
+        -------
+        tuple
+            Storage variables
+        """
+
+        return self.states.values()
+
+    @property
+    def magnitude_limiter(self) -> tuple:
+        """Returns the magnitude limits of the controller
+
+        Returns
+        -------
+        tuple
+            magnitude limits of the controller
+        """
+
+        return self.m_lim
+
+    @magnitude_limiter.setter
+    def magnitude_limiter(self, lim: tuple):
+        """Magnitude limitter setter
+
+        Parameters
+        ----------
+            lim : tuple
+                New magnitude limits
+        """
+
+        assert len(lim) == 2
+        # assert lim[0] < lim[1]
+        self.m_lim = lim
+
+    @property
+    def rate_limiter(self) -> tuple:
+        """Returns the rate limits of the controller
+
+        Returns
+        -------
+        tuple
+            Rate limits of the controller
+        """
+
+        return self.r_lim
+
+    @rate_limiter.setter
+    def rate_limiter(self, lim: tuple):
+        """Rate limiter setter
+
+        Parameters
+        ----------
+        lim : tuple
+            New rate limits
+        """
+
+        assert len(lim) == 2
+        # assert lim[0] < lim[1]
+        self.r_lim = lim
+
     def _limiter(self, u_control: float) -> float:
         """Implements rate and magnitude limiter
 
@@ -438,14 +527,51 @@ class FeedbackTF(object):
 
         return self.ukm1
 
-    def _combined_tf_output(self):
-        pass
+    def _update_xn(self, ck: float, u_lim: float, y: float) -> None:
+        self.states['x1'] = (self.states['x2']
+                             - self.coeff['a1'] * ck
+                             + self.coeff['b0'] * u_lim
+                             + self.coeff['g1'] * y)
 
-    def _update_xn(self):
-        pass
+        if self.order == 1:
+            self.states['x2'] = (- self.coeff['a2'] * ck
+                                 + self.coeff['b1'] * u_lim)
 
-    def __call__(self):
-        pass
+        elif self.order == 2:
+            self.states['x2'] = (self.states['x3']
+                                 - self.coeff['a2'] * ck
+                                 + self.coeff['b1'] * u_lim
+                                 + self.coeff['g2'] * y)
+
+            self.states['x3'] = (- self.coeff['a3'] * ck
+                                 + self.coeff['b2'] * u_lim)
+
+    def __call__(self, y: float, r: float, zoh: bool = False) -> float:
+        now = time.monotonic()
+
+        if zoh is True:
+            try:
+                dt = now - self._last_time if now - self._last_time else 1e-16
+            except TypeError:
+                dt = 1e-16
+
+        if zoh is True and dt < self.delta and self._last_output is not None:
+            # Return last output of the controller if dt < delta
+            return self._last_output
+
+        # Compute the combined transfer function output c(k)
+        ck = self.coeff['g0'] * y + self.states['x1']
+        # Compute unlimited control output u(k)
+        u = self.coeff['k'] * r - ck
+        # Limit controller output to obtain u_lim(k)
+        u_lim = self._limiter(u)
+
+        # Update storage variables x_n
+        self._update_xn(ck, u_lim, y)
+
+        self._last_output = float(u_lim)
+        self._last_time = now
+        return float(u_lim)
 
 
 class TransferFunction(object):
