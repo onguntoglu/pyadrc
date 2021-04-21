@@ -71,6 +71,15 @@ class StateSpace():
     half_gain : tuple, optional
         half gain tuning for controller/observer gains,\
         by default (False, False)
+
+    References
+    ----------
+    .. [1] G. Herbst, "Practical active disturbance rejection control:
+        Bumpless transfer, rate limitation, and incremental algorithm",
+        https://arxiv.org/abs/1908.04610
+
+    .. [2] G. Herbst, "Half-Gain Tuning for Active Disturbance Rejection
+        Control", https://arxiv.org/abs/2003.03986
     """
 
     def __init__(self,
@@ -213,7 +222,7 @@ class StateSpace():
         float
             float: rate and magnitude limited control signal
         """
-    
+
         # Limiting the rate of u (delta_u)
         delta_u = saturation((self.r_lim[0], self.r_lim[1]),
                              u_control - self.ukm1)
@@ -360,6 +369,250 @@ class StateSpace():
             self.xhat = np.fromiter(x0, np.float64).reshape(-1, 1)
 
 
+class FeedbackTF(object):
+
+    """Minimal footprint ADRC implemented with transfer functions in\
+    feedback path
+
+    Parameters
+    ----------
+    order : int
+        first- or second-order ADRC
+    delta : float
+        sampling time in seconds
+    b0 : float
+        gain parameter b0
+    w_cl : float
+        desired closed-loop bandwidth, 4 / w_cl and 6 / w_cl is the
+        corresponding settling time in seconds for first- and second-order ADRC
+        respectively
+    k_eso : float
+        relational observer bandwidth
+    x_init : tuple, optional
+        initial state for the storage variables, by default False
+    r_lim : tuple, optional
+        rate limits of the controller, by default (None, None)
+    m_lim : tuple, optional
+        magnitude limits of the controller, by default (None, None)
+
+    References
+    ----------
+    .. [3] G. Herbst, "A Minimum-Footprint Implementation
+        of Discrete-Time ADRC", https://arxiv.org/abs/2104.01943
+    """
+
+    def __init__(self,
+                 order: int,
+                 delta: float,
+                 b0: float,
+                 w_cl: float,
+                 k_eso: float,
+                 x_init: tuple = False,
+                 r_lim: tuple = (None, None),
+                 m_lim: tuple = (None, None)) -> None:
+
+        assert order == 1 or order == 2, 'First- and second-order FBTF-ADRC\
+            implemented'
+
+        self.order = order
+        self.delta = delta
+
+        zESO = np.exp(-k_eso * w_cl * delta)
+
+        if order == 1:
+            self.coeff = {'a1': -2 * zESO, 'a2': zESO**2,
+                          'b0': delta * w_cl * zESO**2 - (1 - zESO)**2,
+                          'b1': - delta * w_cl * zESO**2,
+                          'g0': (1/(b0 * delta)) * (delta * w_cl
+                                                    * (1-zESO**2)
+                                                    + (1 - zESO)**2),
+                          'g1': (1/(b0 * delta)) * (2 * delta * w_cl
+                                                    * (zESO**2 - zESO)
+                                                    - (1 - zESO)**2),
+                          'k': w_cl / b0}
+
+            self.states = {'x1': 0., 'x2': 0.}
+
+        elif order == 2:
+            _GC = 1/(b0 * delta**2)  # coefficient gamma_n constant
+            self.coeff = {'a1': -3 * zESO, 'a2': 3 * zESO**2, 'a3': -zESO**3,
+                          'b0': 0.5 * (- delta * w_cl * zESO**3
+                                       * (4 - delta * w_cl)
+                                       + delta * w_cl * (1 + zESO)**3
+                                       - (1 - zESO)**3),
+                          'b1': 0.5 * (- delta * w_cl
+                                       * (1 + zESO)**3 - (1 - zESO)**3),
+                          'b2': 0.5 * (delta * w_cl * zESO**3
+                                       * (4 - delta * w_cl)),
+                          'g0': _GC * (delta**2 * w_cl**2 * (1 - zESO**3)
+                                       + 3 * delta * w_cl
+                                       * (1 - zESO - zESO**2 + zESO**3)
+                                       + (1 - zESO)**3),
+                          'g1': _GC * (3 * delta**2 * w_cl**2
+                                       * (- zESO + zESO**3)
+                                       + 4 * delta * w_cl
+                                       * (-1 + 3 * zESO**2 - 2*zESO**3)
+                                       - 2 * (1 - zESO)**3),
+                          'g2': _GC * (3 * delta**2 * w_cl**2
+                                       * (zESO**2 - zESO**3)
+                                       + delta * w_cl
+                                       * (1 + 3 * zESO - 9*zESO**2 + 5*zESO**3)
+                                       + (1 - zESO)**3),
+                          'k': w_cl**2 / b0}
+
+            self.states = {'x1': 0., 'x2': 0., 'x3': 0.}
+
+        # Initialize limiters
+        self.ukm1 = 0.
+        self.r_lim = r_lim
+        self.m_lim = m_lim
+
+        # Zero-order hold variables
+        self._last_time = None
+        self._last_output = None
+        self._last_input = None
+
+    @property
+    def x_states(self) -> tuple:
+        """Returns the storage variables
+
+        Returns
+        -------
+        tuple
+            Storage variables
+        """
+
+        return tuple(self.states.values())
+
+    @property
+    def limiter(self) -> tuple:
+        """Returns the value of both limiters of the controller
+
+        Returns
+        -------
+        tuple of tuples
+            Returns (magnitude_limits, rate_limits)
+        """
+
+        return self.m_lim, self.r_lim
+
+    @limiter.setter
+    def limiter(self, lim_tuple: tuple) -> None:
+        """Setter for magnitude and rate limiter
+
+        Parameters
+        ----------
+            lim_tuple : tuple of tuples
+                New magnitude limits
+        """
+
+        assert len(lim_tuple) == 2
+        assert len(lim_tuple[0]) == 2 and len(lim_tuple[1]) == 2
+        # assert lim[0] < lim[1]
+        self.m_lim = lim_tuple[0]
+        self.r_lim = lim_tuple[1]
+
+    def _limiter(self, u_control: float) -> float:
+        """Implements rate and magnitude limiter
+
+        Parameters
+        ----------
+        u_control : float
+            control signal to be limited
+
+        Returns
+        -------
+        float
+            float: rate and magnitude limited control signal
+        """
+
+        # Limiting the rate of u (delta_u)
+        delta_u = saturation((self.r_lim[0], self.r_lim[1]),
+                             u_control - self.ukm1)
+
+        # Limiting the magnitude of u
+        self.ukm1 = saturation((self.m_lim[0],
+                                self.m_lim[1]),
+                               delta_u + self.ukm1)
+
+        return self.ukm1
+
+    def _update_xn(self, ck: float, u_lim: float, y: float) -> None:
+        """Internal function to update the storage variables after the control
+        signal is calculated
+
+        Parameters
+        ----------
+        ck : float
+            combined transfer function output
+        u_lim : float
+            limited control signal
+        y : float
+            plant output
+        """
+        self.states['x1'] = (self.states['x2']
+                             - self.coeff['a1'] * ck
+                             + self.coeff['b0'] * u_lim
+                             + self.coeff['g1'] * y)
+
+        if self.order == 1:
+            self.states['x2'] = (- self.coeff['a2'] * ck
+                                 + self.coeff['b1'] * u_lim)
+
+        elif self.order == 2:
+            self.states['x2'] = (self.states['x3']
+                                 - self.coeff['a2'] * ck
+                                 + self.coeff['b1'] * u_lim
+                                 + self.coeff['g2'] * y)
+
+            self.states['x3'] = (- self.coeff['a3'] * ck
+                                 + self.coeff['b2'] * u_lim)
+
+    def __call__(self, y: float, r: float, zoh: bool = False) -> float:
+        """Returns value of the control signal depending on current
+        measurements and reference signal.
+
+        Parameters
+        ----------
+        y : float
+            Current measurement y[k] of the process
+        r : float
+            Current reference signal r[k]
+        zoh : bool, optional
+            Only update every delta seconds, by default False
+
+        Returns
+        -------
+        float
+            Current control signal u[k]
+        """
+        now = time.monotonic()
+
+        if zoh is True:
+            try:
+                dt = now - self._last_time if now - self._last_time else 1e-16
+            except TypeError:
+                dt = 1e-16
+
+        if zoh is True and dt < self.delta and self._last_output is not None:
+            # Return last output of the controller if dt < delta
+            return self._last_output
+
+        # Compute the combined transfer function output c(k)
+        ck = self.coeff['g0'] * y + self.states['x1']
+        # Compute unlimited control output u(k)
+        u = self.coeff['k'] * r - ck
+        # Limit controller output to obtain u_lim(k)
+        u_lim = self._limiter(u)
+
+        # Update storage variables x_n
+        self._update_xn(ck, u_lim, y)
+
+        self._last_output = float(u_lim)
+        self._last_time = now
+        return float(u_lim)
+
+
 class TransferFunction(object):
 
     """Discrete time linear active disturbance rejection control\
@@ -374,7 +627,9 @@ class TransferFunction(object):
     b0 : float
         modelling parameter b0
     w_cl : float
-        desired closed-loop bandwidth
+        desired closed-loop bandwidth, 4 / w_cl and 6 / w_cl is the
+        corresponding settling time in seconds for first- and second-order ADRC
+        respectively
     k_eso : float
         observer bandwidth is parametrized as k_eso-multiple faster than w_cl
     eso_init : np.array, optional
@@ -384,19 +639,26 @@ class TransferFunction(object):
     m_lim : tuple, optional
         magnitude limits for the control output, by default (None, None)
     half_gain : tuple, optional
-        half gain tuning for controller/observer gains,\
-            by default (False, False)
+        half gain tuning for controller/observer gains,
+        by default (False, False)
     method : str, optional, 'general_terms' or 'bandwidth'
-        method with which the transfer function parameters are calculated,\
-            functionally identical, but general_terms is used to implement half
-            gain tuning
+        method with which the transfer function parameters are calculated,
+        functionally identical, but general_terms is used to implement half
+        gain tuning
+
+    References
+    ----------
+    .. [4] G. Herbst, Transfer Function Analysis and
+        Implementation of Active Disturbance Rejection Control
+        https://arxiv.org/abs/2011.01044
     """
 
     def __init__(self, order: int, delta: float, b0: float,
                  w_cl: float, k_eso: float, eso_init: np.array = None,
                  r_lim: tuple = (None, None),
                  m_lim: tuple = (None, None),
-                 half_gain: tuple = (False, False), method='general_terms'):
+                 half_gain: tuple = (False, False),
+                 method='general_terms') -> None:
 
         assert order == 1 or order == 2, 'First- and second-order ADRC TF\
             implemented'

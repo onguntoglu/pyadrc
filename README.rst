@@ -75,3 +75,4 @@ None of this work would be possible without **Gernot Herbst** and his papers:
 * *A Simulative Study on Active Disturbance Rejection Control (ADRC) as a Control Tool for Practitioners*, https://arxiv.org/abs/1908.04596
 * *Transfer Function Analysis and Implementation of Active Disturbance Rejection Control*, https://arxiv.org/abs/2011.01044
 * *Half-Gain Tuning for Active Disturbance Rejection Control*, https://arxiv.org/abs/2003.03986
+* *A Minimum-Footprint Implementation of Discrete-Time ADRC*, https://arxiv.org/abs/2104.01943
