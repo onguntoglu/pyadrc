@@ -77,7 +77,7 @@ class StateSpace():
     .. [1] G. Herbst, "Practical active disturbance rejection control:
         Bumpless transfer, rate limitation, and incremental algorithm",
         https://arxiv.org/abs/1908.04610
-        
+
     .. [2] G. Herbst, "Half-Gain Tuning for Active Disturbance Rejection
         Control", https://arxiv.org/abs/2003.03986
     """
@@ -397,7 +397,7 @@ class FeedbackTF(object):
 
     References
     ----------
-    .. [3] G. Herbst, "A Minimum-Footprint Implementation\
+    .. [3] G. Herbst, "A Minimum-Footprint Implementation
         of Discrete-Time ADRC", https://arxiv.org/abs/2104.01943
     """
 
