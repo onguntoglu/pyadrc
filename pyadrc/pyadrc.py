@@ -251,56 +251,32 @@ class StateSpace():
         return self.xhat
 
     @property
-    def magnitude_limiter(self) -> tuple:
-        """Returns the magnitude limits of the controller
+    def limiter(self) -> tuple:
+        """Returns the value of both limiters of the controller
 
         Returns
         -------
-        tuple
-            magnitude limits of the controller
+        tuple of tuples
+            Returns (magnitude_limits, rate_limits)
         """
 
-        return self.m_lim
+        return self.m_lim, self.r_lim
 
-    @magnitude_limiter.setter
-    def magnitude_limiter(self, lim: tuple):
-        """Magnitude limitter setter
+    @limiter.setter
+    def limiter(self, lim_tuple: tuple) -> None:
+        """Setter for magnitude and rate limiter
 
         Parameters
         ----------
-            lim : tuple
+            lim_tuple : tuple of tuples
                 New magnitude limits
         """
 
-        assert len(lim) == 2
+        assert len(lim_tuple) == 2
+        assert len(lim_tuple[0]) == 2 and len(lim_tuple[1]) == 2
         # assert lim[0] < lim[1]
-        self.m_lim = lim
-
-    @property
-    def rate_limiter(self) -> tuple:
-        """Returns the rate limits of the controller
-
-        Returns
-        -------
-        tuple
-            Rate limits of the controller
-        """
-
-        return self.r_lim
-
-    @rate_limiter.setter
-    def rate_limiter(self, lim: tuple):
-        """Rate limiter setter
-
-        Parameters
-        ----------
-        lim : tuple
-            New rate limits
-        """
-
-        assert len(lim) == 2
-        assert lim[0] < lim[1]
-        self.r_lim = lim
+        self.m_lim = lim_tuple[0]
+        self.r_lim = lim_tuple[1]
 
     def __call__(self, y: float, u: float, r: float, zoh: bool = False):
         """Returns value of the control signal depending on current measurements,
