@@ -53,10 +53,12 @@ class StateSpace():
         sampling time in seconds
     b0 : float
         gain parameter b0
-    t_settle : float
-        settling time in seconds, determines closed-loop bandwidth
+    w_cl : float
+        desired closed-loop bandwidth [rad/s], 4 / w_cl and 6 / w_cl is the
+        corresponding settling time in seconds for first- and second-order ADRC
+        respectively
     k_eso : float
-        observer bandwidth
+        relational observer bandwidth
     inc_form : float
         toggle incremental form of ADRC, by default False. If the incremental
         form is toggled, the controller will return the incrementation to the
@@ -86,7 +88,7 @@ class StateSpace():
                  order: int,
                  delta: float,
                  b0: float,
-                 t_settle: float,
+                 w_cl: float,
                  k_eso: float,
                  inc_form: bool = False,
                  eso_init: tuple = False,
@@ -108,6 +110,7 @@ class StateSpace():
             self.Dd = 0
 
             # Controller parameters for closed-loop dynamics
+            t_settle = 4 / w_cl
             sCL = -4 / t_settle
             self.Kp = -2 * sCL
 
@@ -133,6 +136,7 @@ class StateSpace():
             self.Dd = 0
 
             # Controller parameters for closed-loop dynamics
+            t_settle = 6 / w_cl
             sCL = -6 / t_settle
             self.Kp = sCL**2
             self.Kd = -2 * sCL
