@@ -17,13 +17,13 @@ def check_saturation() -> float:
 
 @pytest.fixture
 def adrc_ss():
-    def _adrc_ss(order, delta, b0, t_settle, k_eso, eso_init: np.array = False,
+    def _adrc_ss(order, delta, b0, w_cl, k_eso, eso_init: np.array = False,
                  inc_form: tuple = False,
                  r_lim: tuple = (None, None),
                  m_lim: tuple = (None, None),
                  half_gain: tuple = (False, False)):
         return pyadrc.StateSpace(
-            order, delta, b0, t_settle,
+            order, delta, b0, w_cl,
             k_eso, inc_form, eso_init, r_lim, m_lim, half_gain)
     return _adrc_ss
 
@@ -80,7 +80,7 @@ def test_direction(adrc_ss, y, r, b0):
 
     """direction of control action w.r.t. modeling parameter b0, reference\
     r and current output y"""
-    adrc = adrc_ss(order=1, delta=1, b0=b0, t_settle=1, k_eso=1)
+    adrc = adrc_ss(order=1, delta=1, b0=b0, w_cl=4, k_eso=1)
     assert np.sign(adrc(y, 0, r)) == np.sign(r - y) * np.sign(b0)
 
 
@@ -107,12 +107,12 @@ def test_zoh(adrc_ss_nominal):
 
 def test_magnitude_limit(adrc_ss):
 
-    adrc = adrc_ss(order=1, delta=1, b0=10, t_settle=1, k_eso=1, m_lim=(0, 5))
+    adrc = adrc_ss(order=1, delta=1, b0=10, w_cl=4, k_eso=1, m_lim=(0, 5))
     u1 = adrc(0, 0, 30)
 
     assert u1 == 5
 
-    adrc.magnitude_limiter = (0, 10)
+    adrc.limiter = ((0, 10), (None, None))
     u2 = adrc(0, u1, 30)
 
     assert u2 == 10
@@ -120,14 +120,14 @@ def test_magnitude_limit(adrc_ss):
 
 def test_rate_limit(adrc_ss):
 
-    adrc = adrc_ss(order=1, delta=1, b0=10, t_settle=1, k_eso=1, r_lim=(0, 1))
+    adrc = adrc_ss(order=1, delta=1, b0=10, w_cl=4, k_eso=1, r_lim=(0, 1))
 
     u1 = adrc(0, 0, 30)
     u2 = adrc(0, u1, 30)
 
     assert (u2 - u1) == 1
 
-    adrc.rate_limiter = (0, 5)
+    adrc.limiter = ((None, None), (0, 5))
 
     u3 = adrc(0, u2, 30)
 
@@ -136,7 +136,7 @@ def test_rate_limit(adrc_ss):
 
 def test_both_limiters(adrc_ss):
 
-    adrc = adrc_ss(order=1, delta=1, b0=10, t_settle=1,
+    adrc = adrc_ss(order=1, delta=1, b0=10, w_cl=4,
                    k_eso=1, r_lim=(-1, 1), m_lim=(-5, 5))
     _u = []
     u = 0
@@ -152,14 +152,14 @@ def test_both_limiters(adrc_ss):
 
 def test_reset(adrc_ss):
 
-    adrc = adrc_ss(order=1, delta=1, b0=10, t_settle=1, k_eso=1)
+    adrc = adrc_ss(order=1, delta=1, b0=10, w_cl=4, k_eso=1)
 
     adrc.reset([10, 20])
     assert np.array_equiv(adrc.eso_states.reshape(-1), np.array([10., 20.]))
     adrc.reset()
     assert np.array_equiv(adrc.eso_states.reshape(-1), [0., 0.])
 
-    adrc = adrc_ss(order=2, delta=1, b0=10, t_settle=1, k_eso=1)
+    adrc = adrc_ss(order=2, delta=1, b0=10, w_cl=4, k_eso=1)
     adrc.reset([10, 20, 30])
     assert np.array_equiv(adrc.eso_states.reshape(-1), [10., 20., 30.])
     adrc.reset()

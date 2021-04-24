@@ -53,10 +53,12 @@ class StateSpace():
         sampling time in seconds
     b0 : float
         gain parameter b0
-    t_settle : float
-        settling time in seconds, determines closed-loop bandwidth
+    w_cl : float
+        desired closed-loop bandwidth [rad/s], 4 / w_cl and 6 / w_cl is the
+        corresponding settling time in seconds for first- and second-order ADRC
+        respectively
     k_eso : float
-        observer bandwidth
+        relational observer bandwidth
     inc_form : float
         toggle incremental form of ADRC, by default False. If the incremental
         form is toggled, the controller will return the incrementation to the
@@ -86,7 +88,7 @@ class StateSpace():
                  order: int,
                  delta: float,
                  b0: float,
-                 t_settle: float,
+                 w_cl: float,
                  k_eso: float,
                  inc_form: bool = False,
                  eso_init: tuple = False,
@@ -108,6 +110,7 @@ class StateSpace():
             self.Dd = 0
 
             # Controller parameters for closed-loop dynamics
+            t_settle = 4 / w_cl
             sCL = -4 / t_settle
             self.Kp = -2 * sCL
 
@@ -133,6 +136,7 @@ class StateSpace():
             self.Dd = 0
 
             # Controller parameters for closed-loop dynamics
+            t_settle = 6 / w_cl
             sCL = -6 / t_settle
             self.Kp = sCL**2
             self.Kd = -2 * sCL
@@ -247,56 +251,32 @@ class StateSpace():
         return self.xhat
 
     @property
-    def magnitude_limiter(self) -> tuple:
-        """Returns the magnitude limits of the controller
+    def limiter(self) -> tuple:
+        """Returns the value of both limiters of the controller
 
         Returns
         -------
-        tuple
-            magnitude limits of the controller
+        tuple of tuples
+            Returns (magnitude_limits, rate_limits)
         """
 
-        return self.m_lim
+        return self.m_lim, self.r_lim
 
-    @magnitude_limiter.setter
-    def magnitude_limiter(self, lim: tuple):
-        """Magnitude limitter setter
+    @limiter.setter
+    def limiter(self, lim_tuple: tuple) -> None:
+        """Setter for magnitude and rate limiter
 
         Parameters
         ----------
-            lim : tuple
+            lim_tuple : tuple of tuples
                 New magnitude limits
         """
 
-        assert len(lim) == 2
+        assert len(lim_tuple) == 2
+        assert len(lim_tuple[0]) == 2 and len(lim_tuple[1]) == 2
         # assert lim[0] < lim[1]
-        self.m_lim = lim
-
-    @property
-    def rate_limiter(self) -> tuple:
-        """Returns the rate limits of the controller
-
-        Returns
-        -------
-        tuple
-            Rate limits of the controller
-        """
-
-        return self.r_lim
-
-    @rate_limiter.setter
-    def rate_limiter(self, lim: tuple):
-        """Rate limiter setter
-
-        Parameters
-        ----------
-        lim : tuple
-            New rate limits
-        """
-
-        assert len(lim) == 2
-        assert lim[0] < lim[1]
-        self.r_lim = lim
+        self.m_lim = lim_tuple[0]
+        self.r_lim = lim_tuple[1]
 
     def __call__(self, y: float, u: float, r: float, zoh: bool = False):
         """Returns value of the control signal depending on current measurements,
@@ -383,7 +363,7 @@ class FeedbackTF(object):
     b0 : float
         gain parameter b0
     w_cl : float
-        desired closed-loop bandwidth, 4 / w_cl and 6 / w_cl is the
+        desired closed-loop bandwidth [rad/s], 4 / w_cl and 6 / w_cl is the
         corresponding settling time in seconds for first- and second-order ADRC
         respectively
     k_eso : float
@@ -627,7 +607,7 @@ class TransferFunction(object):
     b0 : float
         modelling parameter b0
     w_cl : float
-        desired closed-loop bandwidth, 4 / w_cl and 6 / w_cl is the
+        desired closed-loop bandwidth [rad/s], 4 / w_cl and 6 / w_cl is the
         corresponding settling time in seconds for first- and second-order ADRC
         respectively
     k_eso : float
