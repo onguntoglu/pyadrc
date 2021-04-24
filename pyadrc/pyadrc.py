@@ -363,7 +363,7 @@ class FeedbackTF(object):
     b0 : float
         gain parameter b0
     w_cl : float
-        desired closed-loop bandwidth, 4 / w_cl and 6 / w_cl is the
+        desired closed-loop bandwidth [rad/s], 4 / w_cl and 6 / w_cl is the
         corresponding settling time in seconds for first- and second-order ADRC
         respectively
     k_eso : float
@@ -607,7 +607,7 @@ class TransferFunction(object):
     b0 : float
         modelling parameter b0
     w_cl : float
-        desired closed-loop bandwidth, 4 / w_cl and 6 / w_cl is the
+        desired closed-loop bandwidth [rad/s], 4 / w_cl and 6 / w_cl is the
         corresponding settling time in seconds for first- and second-order ADRC
         respectively
     k_eso : float
