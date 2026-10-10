@@ -164,3 +164,21 @@ def test_reset(adrc_ss):
     assert np.array_equiv(adrc.eso_states.reshape(-1), [10., 20., 30.])
     adrc.reset()
     assert np.array_equiv(adrc.eso_states.reshape(-1), [0., 0., 0.])
+
+
+def test_invalid_arguments():
+
+    with pytest.raises(ValueError):
+        pyadrc.StateSpace(3, 1, 1, 1, 1)
+    with pytest.raises(ValueError):
+        pyadrc.StateSpace(1, 1, 1, 1, 1, eso_init=[0, 0, 0])
+    with pytest.raises(ValueError):
+        pyadrc.FeedbackTF(3, 1, 1, 1, 1)
+    with pytest.raises(ValueError):
+        pyadrc.TransferFunction(0, 1, 1, 1, 1)
+
+    adrc = pyadrc.StateSpace(1, 1, 1, 1, 1)
+    with pytest.raises(ValueError):
+        adrc.reset([0, 0, 0])
+    with pytest.raises(ValueError):
+        adrc.limiter = ((0, 1),)

@@ -96,8 +96,9 @@ class StateSpace():
                  m_lim: tuple = (None, None),
                  half_gain: tuple = (False, False)):
 
-        assert (order == 1) or (order == 2),\
-            'Only first- and second-order ADRC is implemented'
+        if order not in (1, 2):
+            raise ValueError('Only first- and second-order ADRC is '
+                             'implemented')
 
         self.b0 = b0
         nx = order + 1
@@ -169,9 +170,9 @@ class StateSpace():
             self.L = self.L / 2
 
         if eso_init is not False:
-            assert len(eso_init) == nx,\
-                'Length of initial state vector of LESO not compatible\
-                    with order'
+            if len(eso_init) != nx:
+                raise ValueError('Length of initial state vector of LESO not '
+                                 'compatible with order')
             self.xhat = np.fromiter(eso_init, np.float64).reshape(-1, 1)
 
         self._last_time = None
@@ -272,9 +273,8 @@ class StateSpace():
                 New magnitude limits
         """
 
-        assert len(lim_tuple) == 2
-        assert len(lim_tuple[0]) == 2 and len(lim_tuple[1]) == 2
-        # assert lim[0] < lim[1]
+        if len(lim_tuple) != 2 or any(len(lim) != 2 for lim in lim_tuple):
+            raise ValueError('Expected ((m_lo, m_hi), (r_lo, r_hi))')
         self.m_lim = lim_tuple[0]
         self.r_lim = lim_tuple[1]
 
@@ -340,8 +340,8 @@ class StateSpace():
 
         nx = len(self.xhat)
 
-        assert x0 is None or len(np.fromiter(x0, float)) == nx,\
-            "Invalid state vector"
+        if x0 is not None and len(x0) != nx:
+            raise ValueError('Invalid state vector')
 
         if x0 is None:
             self.xhat = np.zeros((nx, 1), dtype=np.float64)
@@ -391,8 +391,9 @@ class FeedbackTF(object):
                  r_lim: tuple = (None, None),
                  m_lim: tuple = (None, None)) -> None:
 
-        assert order == 1 or order == 2, 'First- and second-order FBTF-ADRC\
-            implemented'
+        if order not in (1, 2):
+            raise ValueError('Only first- and second-order FBTF-ADRC is '
+                             'implemented')
 
         self.order = order
         self.delta = delta
@@ -486,9 +487,8 @@ class FeedbackTF(object):
                 New magnitude limits
         """
 
-        assert len(lim_tuple) == 2
-        assert len(lim_tuple[0]) == 2 and len(lim_tuple[1]) == 2
-        # assert lim[0] < lim[1]
+        if len(lim_tuple) != 2 or any(len(lim) != 2 for lim in lim_tuple):
+            raise ValueError('Expected ((m_lo, m_hi), (r_lo, r_hi))')
         self.m_lim = lim_tuple[0]
         self.r_lim = lim_tuple[1]
 
@@ -627,8 +627,9 @@ class TransferFunction(object):
                  w_cl: float, k_eso: float,
                  method: str = 'general_terms') -> None:
 
-        assert order == 1 or order == 2, 'First- and second-order ADRC TF\
-            implemented'
+        if order not in (1, 2):
+            raise ValueError('Only first- and second-order ADRC TF is '
+                             'implemented')
 
         # Define attributes
         self.order = order

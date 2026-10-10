@@ -18,12 +18,8 @@ class QuadAltitude(object):
     def __init__(self, dt: float = 0.001,
                  m: float = 0.028, g: float = 9.807):
 
-        assert isinstance(g, float), 'Gravity needs to be of type float'
-        assert isinstance(m, float), 'Mass of quadcopter \
-            needs to be of type float'
-
-        self.g = g
-        self.m = m
+        self.g = float(g)
+        self.m = float(m)
         self.dt = dt
 
         self.vel = 0
@@ -108,17 +104,14 @@ class System(object):
     def __init__(self, K: float = 1.0, T: float = 1.0,
                  D: float = None, delta: float = 0.001) -> None:
 
-        assert isinstance(K, float)
-        assert isinstance(T, float)
-        assert delta > 0, "Sampling time has to be positive"
+        if delta <= 0:
+            raise ValueError('Sampling time has to be positive')
 
         # First-order process
         num = np.array([K]).reshape(-1)
         den = np.array([T, 1]).reshape(-1)
 
         if D is not None:
-            assert isinstance(D, float),\
-                "Damping factor D must be type float"
             # Second-order process
             den = np.array([T**2, 2 * D * T, 1]).reshape(-1)
 
