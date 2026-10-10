@@ -310,8 +310,9 @@ class StateSpace():
                 dt = 1e-16
 
         if zoh is True and dt < self.delta and self._last_output is not None:
-            # Return last output of the controller if dt < delta
-            return self._last_output
+            # Hold the last output of the controller if dt < delta, i.e.
+            # no increment in incremental form
+            return 0. if self.inc_form else self._last_output
 
         self._update_eso(y, u)
 
@@ -322,8 +323,9 @@ class StateSpace():
             # Limited incremental ADRC, eqs. (22)-(24) in [1]. The carry-over
             # term in (22) makes du(k) = u_unlim(k) - u_lim(k-1), so compute
             # the unlimited control signal directly (no accumulated rounding),
-            # offset to continue bumplessly from the first u[k-1] passed in,
             # limit it relative to u[k-1] and return the increment.
+            # Unlike [1], u_unlim is offset to continue bumplessly from the
+            # first u[k-1] passed in (or the first one after reset()).
             if self._u_offset is None:
                 xhat_km1 = self.xhat - self.xhat_delta
                 self._u_offset = u - ((self.Kp / self.b0) * self.rkm1
@@ -351,16 +353,15 @@ class StateSpace():
 
         nx = len(self.xhat)
 
-        if x0 is not None and len(x0) != nx:
-            raise ValueError('Invalid state vector')
-
         if x0 is None:
             self.xhat = np.zeros((nx, 1), dtype=np.float64)
         else:
-            self.xhat = np.fromiter(x0, np.float64).reshape(-1, 1)
+            x0 = np.fromiter(x0, np.float64)
+            if len(x0) != nx:
+                raise ValueError('Invalid state vector')
+            self.xhat = x0.reshape(-1, 1)
 
         if self.inc_form is True:
-            self.rkm1 = 0.
             self._u_offset = None
 
 

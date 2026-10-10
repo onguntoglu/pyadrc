@@ -182,3 +182,23 @@ def test_invalid_arguments():
         adrc.reset([0, 0, 0])
     with pytest.raises(ValueError):
         adrc.limiter = ((0, 1),)
+
+
+def test_incremental_reset_and_zoh(adrc_ss):
+    """Incremental form: reset() is bumpless, zoh holds return no increment."""
+
+    adrc = adrc_ss(1, 0.01, 2, 5, 4, inc_form=True)
+    plant = pyadrc.System(K=2.0, T=0.5, delta=0.01)
+    y = u = 0.
+    for _ in range(500):
+        u += adrc(y, u, 1.)
+        y = plant(u)
+
+    adrc.reset(adrc.eso_states.ravel())
+    assert abs(adrc(y, u, 1.)) < 1e-6
+
+    adrc = adrc_ss(1, 1, 1, 1, 1, inc_form=True, m_lim=(-1, 1))
+    u = 0.
+    for _ in range(5):
+        u += adrc(0, u, 10, zoh=True)
+    assert u == 1
