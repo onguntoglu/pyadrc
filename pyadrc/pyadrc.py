@@ -612,19 +612,9 @@ class TransferFunction(object):
         respectively
     k_eso : float
         observer bandwidth is parametrized as k_eso-multiple faster than w_cl
-    eso_init : np.array, optional
-        initial state for the extended state observer, by default None
-    r_lim : tuple, optional
-        rate limits for the control output, by default (None, None)
-    m_lim : tuple, optional
-        magnitude limits for the control output, by default (None, None)
-    half_gain : tuple, optional
-        half gain tuning for controller/observer gains,
-        by default (False, False)
     method : str, optional, 'general_terms' or 'bandwidth'
         method with which the transfer function parameters are calculated,
-        functionally identical, but general_terms is used to implement half
-        gain tuning
+        functionally identical, by default 'general_terms'
 
     References
     ----------
@@ -634,11 +624,8 @@ class TransferFunction(object):
     """
 
     def __init__(self, order: int, delta: float, b0: float,
-                 w_cl: float, k_eso: float, eso_init: np.array = None,
-                 r_lim: tuple = (None, None),
-                 m_lim: tuple = (None, None),
-                 half_gain: tuple = (False, False),
-                 method='general_terms') -> None:
+                 w_cl: float, k_eso: float,
+                 method: str = 'general_terms') -> None:
 
         assert order == 1 or order == 2, 'First- and second-order ADRC TF\
             implemented'
@@ -816,8 +803,7 @@ class TransferFunction(object):
         method : str, optional
             Calculation via general terms (i.e. controller and observer gains)
             or bandwidth parametrization, functionally identical,
-            implementation uses general terms to leverage half-gain
-            tuning method, by default 'general_terms'
+            by default 'general_terms'
 
         Returns
         -------

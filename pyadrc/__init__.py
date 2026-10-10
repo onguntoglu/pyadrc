@@ -1,5 +1,3 @@
-import sys
-
 """Top-level package for pyadrc."""
 
 __author__ = """Ongun Türkcüoglu"""
@@ -9,5 +7,5 @@ __version__ = '0.4.1'
 from .pyadrc import StateSpace, TransferFunction, FeedbackTF, saturation
 from .models import QuadAltitude, System
 
-__all__ = ['StateSpace', 'TransferFunction', 'QuadAltitude',
-           'System', '__version__']
+__all__ = ['StateSpace', 'TransferFunction', 'FeedbackTF', 'saturation',
+           'QuadAltitude', 'System', '__version__']

@@ -11,19 +11,32 @@ StateSpace
 
 After importing pyadrc, create StateSpace controller::
 
-    adrc_statespace = pyadrc.StateSpace(order, delta, b0, t_settle, k_eso)
+    adrc_statespace = pyadrc.StateSpace(order, delta, b0, w_cl, k_eso)
 
 You can find out how to select the parameters by checking :ref:`introduction-label` or :ref:`api-label`. Examples can be found in :ref:`notebooks-label`. 
 
 If you want to configure the initial values for ESO, rate and magnitude limiter and half-gain tuning, tune the parameters at object creation or use the getter/setters to turn them on/off within the control loop::
 
-    adrc_statespace = pyadrc.StateSpace(order, delta, b0, t_settle,
-                                        k_eso, eso_init, r_lim, m_lim, half_gain)
+    adrc_statespace = pyadrc.StateSpace(order, delta, b0, w_cl, k_eso,
+                                        eso_init=eso_init, r_lim=r_lim,
+                                        m_lim=m_lim, half_gain=half_gain)
 
 TransferFunction
 ################
 
-Transfer function form of ADRC has not been fully implemented and not functional. Use at your own risk! Check out :ref:`api-label` if you want to use it anyway.
+Transfer function form of ADRC, functionally identical to StateSpace without limiters. The controller only needs the measurement and the reference::
+
+    adrc_tf = pyadrc.TransferFunction(order, delta, b0, w_cl, k_eso)
+    ctrl = adrc_tf(y, r)
+
+FeedbackTF
+##########
+
+Minimum-footprint implementation with rate and magnitude limiters::
+
+    adrc_fbtf = pyadrc.FeedbackTF(order, delta, b0, w_cl, k_eso,
+                                  r_lim=r_lim, m_lim=m_lim)
+    ctrl = adrc_fbtf(y, r, zoh=False)
 
 Control loop
 ############
