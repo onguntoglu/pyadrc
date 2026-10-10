@@ -1,4 +1,4 @@
-pydata-sphinx-theme
+pydata-sphinx-theme==0.23.0
 myst-parser
 ipykernel
 nbsphinx
