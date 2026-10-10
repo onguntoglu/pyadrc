@@ -112,7 +112,7 @@ class StateSpace():
             # Controller parameters for closed-loop dynamics
             t_settle = 4 / w_cl
             sCL = -4 / t_settle
-            self.Kp = -2 * sCL
+            self.Kp = -sCL
 
             # Observer dynamics
             sESO = k_eso * sCL
@@ -158,7 +158,7 @@ class StateSpace():
 
         self.xhat = np.zeros((nx, 1), dtype=np.float64)
 
-        self.ukm1 = np.zeros((1, 1), dtype=np.float64)
+        self.ukm1 = 0.
 
         self.m_lim = m_lim
         self.r_lim = r_lim
@@ -314,12 +314,12 @@ class StateSpace():
         self._update_eso(y, u)
 
         if self.inc_form is False:
-            u = (self.Kp / self.b0) * r - self.w.T @ self.xhat
+            u = (self.Kp / self.b0) * r - (self.w.T @ self.xhat).item()
             u = self._limiter(u)
         else:  # self.inc_form is True:
             delta_r = r - self.rkm1
             delta_u = ((self.Kp / self.b0) * delta_r
-                       - self.w.T @ self.xhat_delta)
+                       - (self.w.T @ self.xhat_delta).item())
             u = delta_u
 
             self.rkm1 = r
@@ -878,10 +878,10 @@ class TransferFunction(object):
                 g0 = k1 / _C_TERM
 
                 g1 = ((k1 * (delta**2 * l3 + 2 * delta * l2 + 2 * l1 - 6))
-                      / _C_TERM)
+                      / (2 * _C_TERM))
 
                 g2 = ((k1 * (delta**2 * l3 - 2 * delta * l2 - 4 * l1 + 6))
-                      / _C_TERM)
+                      / (2 * _C_TERM))
 
                 g3 = (k1 * (l1 - 1)) / _C_TERM
 
@@ -897,9 +897,9 @@ class TransferFunction(object):
                 be1 = ((1/(b0 * delta)) * ((-2 * delta * w_cl * zESO)
                                            * (1 - zESO) - (1 - zESO)**2))
 
-                g0 = (delta * w_cl) * _C_TERM
-                g1 = (-2 * delta * w_cl * zESO) * _C_TERM
-                g2 = (delta * w_cl * zESO**2) * _C_TERM
+                g0 = (delta * w_cl) / _C_TERM
+                g1 = (-2 * delta * w_cl * zESO) / _C_TERM
+                g2 = (delta * w_cl * zESO**2) / _C_TERM
 
             elif order == 2:
 
@@ -923,7 +923,7 @@ class TransferFunction(object):
                           - 2 * (1 - zESO)**3))
 
                 be2 = ((1 / (b0 * delta**2))
-                       * (-3 * delta**2 * w_cl**2 * zESO**2 * (1 - zESO)
+                       * (3 * delta**2 * w_cl**2 * zESO**2 * (1 - zESO)
                           + delta * w_cl
                           * (1 + 3 * zESO - 9 * zESO**2 + 5 * zESO**3)
                           + (1 - zESO)**3))

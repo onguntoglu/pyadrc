@@ -148,7 +148,7 @@ class System(object):
 
         self.x = self.A.dot(self.x) + self.B.dot(u)
 
-        return float(self.C.dot(self.x))
+        return (self.C @ self.x).item()
 
 
 class RandomSystem(object):
@@ -177,4 +177,4 @@ class RandomSystem(object):
     def __call__(self, u: float) -> float:
 
         self.x = self.A.dot(self.x) + self.B.dot(u)
-        return float(self.C.dot(self.x) + self.D.dot(u))
+        return (self.C @ self.x + self.D * u).item()
