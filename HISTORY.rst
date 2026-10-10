@@ -2,8 +2,8 @@
 History
 =======
 
-Unreleased
-----------
+0.5.2 (2026-10-10)
+------------------
 
 * Fix incremental ``StateSpace``: ``reset()`` no longer causes a jump in
   the control signal (regression in 0.5.1), and ``zoh=True`` holds return
