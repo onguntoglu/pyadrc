@@ -4,25 +4,16 @@
 Notebooks
 =========
 
-Altitude Control of a Quadcopter
-================================
+The notebooks are in ``docs/notebooks`` of the repository.
 
-    * Basics - StateSpace
-        * Demonstrates how to create StateSpace controller, and how to design a control loop with the API
-        * The importance of the modelling parameter is indicated along with possibly scenarios
-        * See how ADRC rejects disturbances.
+* **Altitude Control of a Quadcopter**: how to create a StateSpace controller
+  and design a control loop, the importance of the modelling parameter
+  :math:`b_0`, and disturbance rejection.
+* **Tracking Differentiator**: shaping the reference signal with Han's
+  tracking differentiator, and its effect on peak thrust of the quadcopter.
 
-    * Closed-loop dynamics
-        * Examines how controller and observer poles are placed using bandwidth parametrization
-        * The effects of noise are investigated.
-        * Half-gain tuning is introduced.
+.. toctree::
+   :maxdepth: 1
 
-    * Magnitude and rate limiters
-        * Limiters and their significance for practical implementation are discussed. 
-
-Tracking Differentiator
-=======================
-
-    * Shaping the reference signal with Han's tracking differentiator
-        * The time-optimal transient profile and the effect of r0 and h0
-        * Quadcopter altitude steps: peak thrust with and without the tracking differentiator
+   notebooks/quadcopter_basic
+   notebooks/tracking_differentiator

@@ -3,7 +3,11 @@
 .. toctree::
    :hidden:
 
+   installation
    introduction
    usage
    notebooks
    api
+   contributing
+   history
+   authors

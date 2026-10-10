@@ -32,7 +32,7 @@ import pyadrc
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
-    'myst_parser',
+    'myst_nb',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.doctest',
@@ -43,6 +43,9 @@ extensions = [
 ]
 
 numpydoc_show_class_members = False
+
+# Notebooks are committed with outputs, do not execute them on build
+nb_execution_mode = 'off'
 autodoc_typehints = "none"
 # napoleon_google_docstring = False
 # napoleon_use_param = False
@@ -82,7 +85,7 @@ release = pyadrc.__version__
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -106,7 +109,6 @@ html_theme = 'pydata_sphinx_theme'
 html_theme_options = {
     "github_url": "https://github.com/onguntoglu/pyadrc",
     "show_prev_next": False,
-    "search_bar_position": "navbar",
 }
 
 # Theme options are theme-specific and customize the look and feel of a
@@ -118,7 +120,6 @@ html_theme_options = {
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
 
 
 # -- Options for HTMLHelp output ---------------------------------------
