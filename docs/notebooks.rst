@@ -20,4 +20,9 @@ Altitude Control of a Quadcopter
     * Magnitude and rate limiters
         * Limiters and their significance for practical implementation are discussed. 
 
+Tracking Differentiator
+=======================
 
+    * Shaping the reference signal with Han's tracking differentiator
+        * The time-optimal transient profile and the effect of r0 and h0
+        * Quadcopter altitude steps: peak thrust with and without the tracking differentiator
