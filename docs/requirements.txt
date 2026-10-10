@@ -1,5 +1,5 @@
 pydata-sphinx-theme
 myst-parser
-ipykernel
+ipykernel==7.4.0
 nbsphinx
 numpydoc
