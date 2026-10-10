@@ -2,6 +2,16 @@
 History
 =======
 
+Unreleased
+----------
+
+* Fix incremental ``StateSpace``: ``reset()`` no longer causes a jump in
+  the control signal (regression in 0.5.1), and ``zoh=True`` holds return
+  a zero increment instead of repeating the last one.
+* ``StateSpace.reset()`` accepts any iterable again.
+* Quadcopter notebook: physical displacement and thrust-loss disturbances,
+  text matches the code.
+
 0.5.1 (2026-10-10)
 ------------------
 
