@@ -40,6 +40,13 @@ def saturation(_limits: tuple, _val: float) -> float:
     return _val
 
 
+def _rate_magnitude_limit(u: float, ukm1: float, r_lim: tuple,
+                          m_lim: tuple) -> float:
+    """Limit the change of u w.r.t. u[k-1] by r_lim, then u by m_lim"""
+
+    return saturation(m_lim, ukm1 + saturation(r_lim, u - ukm1))
+
+
 def fhan(x1: float, x2: float, r0: float, h0: float) -> float:
     """Discrete time-optimal control function fhan, eq. (11) in J. Han,
     "From PID to Active Disturbance Rejection Control", IEEE Transactions on
@@ -113,7 +120,7 @@ class StateSpace():
         Functionally identical to the non-incremental (normal) form, including
         rate and magnitude limiters.
     eso_init : tuple, optional
-        initial state for the extended state observer, by default False
+        initial state for the extended state observer, by default None
     r_lim : tuple, optional
         rate limits for the control signal, by default (None, None)
     m_lim : tuple, optional
@@ -139,7 +146,7 @@ class StateSpace():
                  w_cl: float,
                  k_eso: float,
                  inc_form: bool = False,
-                 eso_init: tuple = False,
+                 eso_init: tuple | None = None,
                  r_lim: tuple = (None, None),
                  m_lim: tuple = (None, None),
                  half_gain: tuple = (False, False)):
@@ -217,7 +224,7 @@ class StateSpace():
         if half_gain[1] is True:
             self.L = self.L / 2
 
-        if eso_init is not False:
+        if eso_init is not None and eso_init is not False:
             if len(eso_init) != nx:
                 raise ValueError('Length of initial state vector of LESO not '
                                  'compatible with order')
@@ -262,31 +269,6 @@ class StateSpace():
                 ukm1).reshape(-1, 1) + self.L.dot(y)
 
             self.xhat = self.xhat + self.xhat_delta
-
-    def _limiter(self, u_control: float) -> float:
-        """Implements rate and magnitude limiter
-
-        Parameters
-        ----------
-        u_control : float
-            control signal to be limited
-
-        Returns
-        -------
-        float
-            float: rate and magnitude limited control signal
-        """
-
-        # Limiting the rate of u (delta_u)
-        delta_u = saturation((self.r_lim[0], self.r_lim[1]),
-                             u_control - self.ukm1)
-
-        # Limiting the magnitude of u
-        self.ukm1 = saturation((self.m_lim[0],
-                                self.m_lim[1]),
-                               delta_u + self.ukm1)
-
-        return self.ukm1
 
     @property
     def eso_states(self) -> tuple:
@@ -365,7 +347,8 @@ class StateSpace():
 
         if self.inc_form is False:
             u = (self.Kp / self.b0) * r - (self.w.T @ self.xhat).item()
-            u = self._limiter(u)
+            u = self.ukm1 = _rate_magnitude_limit(u, self.ukm1, self.r_lim,
+                                                  self.m_lim)
         else:  # self.inc_form is True:
             # Limited incremental ADRC, eqs. (22)-(24) in [1]. The carry-over
             # term in (22) makes du(k) = u_unlim(k) - u_lim(k-1), so compute
@@ -379,8 +362,8 @@ class StateSpace():
                                       - (self.w.T @ xhat_km1).item())
             u_unlim = ((self.Kp / self.b0) * r
                        - (self.w.T @ self.xhat).item() + self._u_offset)
-            u = saturation(self.m_lim, u + saturation(
-                self.r_lim, u_unlim - u)) - u
+            u = _rate_magnitude_limit(u_unlim, u, self.r_lim,
+                                      self.m_lim) - u
 
             self.rkm1 = r
 
@@ -432,7 +415,8 @@ class FeedbackTF(object):
     k_eso : float
         relational observer bandwidth
     x_init : tuple, optional
-        initial state for the storage variables, by default False
+        initial state for the storage variables (x1, ..., x_order+1),
+        by default None, i.e. zero
     r_lim : tuple, optional
         rate limits of the controller, by default (None, None)
     m_lim : tuple, optional
@@ -450,7 +434,7 @@ class FeedbackTF(object):
                  b0: float,
                  w_cl: float,
                  k_eso: float,
-                 x_init: tuple = False,
+                 x_init: tuple | None = None,
                  r_lim: tuple = (None, None),
                  m_lim: tuple = (None, None)) -> None:
 
@@ -506,6 +490,12 @@ class FeedbackTF(object):
 
             self.states = {'x1': 0., 'x2': 0., 'x3': 0.}
 
+        if x_init is not None and x_init is not False:
+            if len(x_init) != len(self.states):
+                raise ValueError('Length of initial state vector not '
+                                 'compatible with order')
+            self.states = dict(zip(self.states, map(float, x_init)))
+
         # Initialize limiters
         self.ukm1 = 0.
         self.r_lim = r_lim
@@ -554,31 +544,6 @@ class FeedbackTF(object):
             raise ValueError('Expected ((m_lo, m_hi), (r_lo, r_hi))')
         self.m_lim = lim_tuple[0]
         self.r_lim = lim_tuple[1]
-
-    def _limiter(self, u_control: float) -> float:
-        """Implements rate and magnitude limiter
-
-        Parameters
-        ----------
-        u_control : float
-            control signal to be limited
-
-        Returns
-        -------
-        float
-            float: rate and magnitude limited control signal
-        """
-
-        # Limiting the rate of u (delta_u)
-        delta_u = saturation((self.r_lim[0], self.r_lim[1]),
-                             u_control - self.ukm1)
-
-        # Limiting the magnitude of u
-        self.ukm1 = saturation((self.m_lim[0],
-                                self.m_lim[1]),
-                               delta_u + self.ukm1)
-
-        return self.ukm1
 
     def _update_xn(self, ck: float, u_lim: float, y: float) -> None:
         """Internal function to update the storage variables after the control
@@ -646,7 +611,8 @@ class FeedbackTF(object):
         # Compute unlimited control output u(k)
         u = self.coeff['k'] * r - ck
         # Limit controller output to obtain u_lim(k)
-        u_lim = self._limiter(u)
+        u_lim = self.ukm1 = _rate_magnitude_limit(u, self.ukm1, self.r_lim,
+                                                  self.m_lim)
 
         # Update storage variables x_n
         self._update_xn(ck, u_lim, y)
@@ -1041,7 +1007,8 @@ class TrackingDifferentiator(object):
         pp. 900-906, 2009
     """
 
-    def __init__(self, delta: float, r0: float, h0: float = None) -> None:
+    def __init__(self, delta: float, r0: float,
+                 h0: float | None = None) -> None:
 
         h0 = delta if h0 is None else h0
 

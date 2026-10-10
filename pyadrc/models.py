@@ -102,7 +102,7 @@ class System(object):
     """
 
     def __init__(self, K: float = 1.0, T: float = 1.0,
-                 D: float = None, delta: float = 0.001) -> None:
+                 D: float | None = None, delta: float = 0.001) -> None:
 
         if delta <= 0:
             raise ValueError('Sampling time has to be positive')
@@ -142,32 +142,3 @@ class System(object):
         self.x = self.A.dot(self.x) + self.B.dot(u)
 
         return (self.C @ self.x).item()
-
-
-class RandomSystem(object):
-
-    def __init__(self, states=1) -> None:
-        """Create random discrete state space system
-
-        Args:
-            states (int, optional): number of states. Defaults to 1.
-
-        Returns:
-            None: [description]
-        """
-
-        import control
-
-        system = control.drss(states=states)
-
-        self.A = np.array(system.A)
-        self.B = np.array(system.B)
-        self.C = np.array(system.C)
-        self.D = np.array(system.D)
-
-        self.x = np.zeros((states, 1), dtype=np.float64)
-
-    def __call__(self, u: float) -> float:
-
-        self.x = self.A.dot(self.x) + self.B.dot(u)
-        return (self.C @ self.x + self.D * u).item()

@@ -4,7 +4,6 @@
 
 import pytest
 import pyadrc
-import time
 import numpy as np
 
 
@@ -17,7 +16,7 @@ def check_saturation() -> float:
 
 @pytest.fixture
 def adrc_ss():
-    def _adrc_ss(order, delta, b0, w_cl, k_eso, eso_init: np.array = False,
+    def _adrc_ss(order, delta, b0, w_cl, k_eso, eso_init=None,
                  inc_form: tuple = False,
                  r_lim: tuple = (None, None),
                  m_lim: tuple = (None, None),
@@ -84,22 +83,25 @@ def test_direction(adrc_ss, y, r, b0):
     assert np.sign(adrc(y, 0, r)) == np.sign(r - y) * np.sign(b0)
 
 
-def test_zoh(adrc_ss_nominal):
-    # Test zero-order hold
+def test_zoh(adrc_ss_nominal, monkeypatch):
+    # Test zero-order hold with a fake clock (delta = 1 s)
+    now = [100.]
+    monkeypatch.setattr(pyadrc.pyadrc.time, 'monotonic', lambda: now[0])
+
     u = 0
     y = 0
 
     # Get control action calculated by ADRC
     u = adrc_ss_nominal(y=y, u=u, r=10, zoh=True)
 
-    # Wait 0.5 seconds, controller should return the same value
-    time.sleep(0.5)
+    # After 0.5 seconds, controller should return the same value
+    now[0] += 0.5
     ret1 = adrc_ss_nominal(y=y, u=u, r=10, zoh=True)
 
     assert u == ret1
 
-    # Wait another 0.5 seconds, controller should return new value
-    time.sleep(0.5)
+    # After another 0.5 seconds, controller should return new value
+    now[0] += 0.5
     ret2 = adrc_ss_nominal(y=y, u=ret1, r=10, zoh=True)
 
     assert ret1 != ret2
@@ -202,3 +204,11 @@ def test_incremental_reset_and_zoh(adrc_ss):
     for _ in range(5):
         u += adrc(0, u, 10, zoh=True)
     assert u == 1
+
+
+def test_feedbacktf_x_init():
+
+    fbtf = pyadrc.FeedbackTF(2, 0.01, 1, 1, 1, x_init=(1, 2, 3))
+    assert fbtf.x_states == (1., 2., 3.)
+    with pytest.raises(ValueError):
+        pyadrc.FeedbackTF(1, 0.01, 1, 1, 1, x_init=(1, 2, 3))
