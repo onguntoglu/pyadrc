@@ -319,9 +319,11 @@ class StateSpace():
             u = (self.Kp / self.b0) * r - (self.w.T @ self.xhat).item()
             u = self._limiter(u)
         else:  # self.inc_form is True:
-            # Unlimited control signal, offset so that it continues from the
-            # first u[k-1] passed in (bumpless). Clipped increments are not
-            # lost: limit it relative to u[k-1] and return the increment.
+            # Limited incremental ADRC, eqs. (22)-(24) in [1]. The carry-over
+            # term in (22) makes du(k) = u_unlim(k) - u_lim(k-1), so compute
+            # the unlimited control signal directly (no accumulated rounding),
+            # offset to continue bumplessly from the first u[k-1] passed in,
+            # limit it relative to u[k-1] and return the increment.
             if self._u_offset is None:
                 xhat_km1 = self.xhat - self.xhat_delta
                 self._u_offset = u - ((self.Kp / self.b0) * self.rkm1
