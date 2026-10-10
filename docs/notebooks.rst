@@ -12,9 +12,6 @@ Altitude Control of a Quadcopter
         * The importance of the modelling parameter is indicated along with possibly scenarios
         * See how ADRC rejects disturbances.
 
-        .. image:: https://mybinder.org/badge_logo.svg
-            :target: https://mybinder.org/v2/gh/onguntoglu/pyadrc/master?filepath=docs%2Fnotebooks%2Fquadcopter_basic.ipynb
-
     * Closed-loop dynamics
         * Examines how controller and observer poles are placed using bandwidth parametrization
         * The effects of noise are investigated.
