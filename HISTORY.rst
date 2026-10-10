@@ -2,6 +2,16 @@
 History
 =======
 
+0.6.1 (2026-10-10)
+------------------
+
+* ``FeedbackTF`` now uses its documented ``x_init`` argument (it was
+  ignored).
+* Remove ``pyadrc.models.RandomSystem`` (never exported or documented).
+* Docs render both notebooks; stale pages removed.
+* Internal: one shared rate/magnitude limiter, type hint fixes, faster
+  tests.
+
 0.6.0 (2026-10-10)
 ------------------
 
