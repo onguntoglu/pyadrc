@@ -36,6 +36,6 @@ jobs:
           python-version: "3.12"
       - run: pip install build && python -m build
       - uses: pypa/gh-action-pypi-publish@release/v1
-      - run: gh release create "$GITHUB_REF_NAME" dist/* --title "pyadrc ${GITHUB_REF_NAME#v}" --generate-notes --verify-tag
+      - run: gh release create "$GITHUB_REF_NAME" dist/*.whl dist/*.tar.gz --title "pyadrc ${GITHUB_REF_NAME#v}" --generate-notes --verify-tag
         env:
           GH_TOKEN: ${{ github.token }}
