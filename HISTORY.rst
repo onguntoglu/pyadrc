@@ -2,8 +2,8 @@
 History
 =======
 
-Unreleased
-----------
+0.5.0 (2026-10-10)
+------------------
 
 * Fix crash with NumPy 2 (``StateSpace`` and models returned 1x1 arrays).
 * Fix first-order ``StateSpace`` proportional gain (was ``2 * w_cl``,
