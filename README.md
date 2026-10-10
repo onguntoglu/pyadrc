@@ -1,9 +1,8 @@
 # pyadrc's Documentation
 
 [![PyPI](https://img.shields.io/pypi/v/pyadrc.svg)](https://pypi.python.org/pypi/pyadrc)
-[![Build Status](https://www.travis-ci.com/onguntoglu/pyadrc.svg?branch=master)](https://www.travis-ci.com/onguntoglu/pyadrc)
+[![CI](https://github.com/onguntoglu/pyadrc/actions/workflows/ci.yml/badge.svg)](https://github.com/onguntoglu/pyadrc/actions/workflows/ci.yml)
 [![Documentation Status](https://readthedocs.org/projects/pyadrc/badge/?version=latest)](https://pyadrc.readthedocs.io/en/latest/?badge=latest)
-[![Codecov](https://codecov.io/gh/onguntoglu/pyadrc/branch/master/graph/badge.svg?token=V8WT0V43QD)](https://codecov.io/gh/onguntoglu/pyadrc)
 [![Licence](https://img.shields.io/github/license/onguntoglu/pyadrc.svg)](https://github.com/onguntoglu/pyadrc/blob/master/LICENSE)
 [![Downloads](https://pepy.tech/badge/pyadrc)](https://pepy.tech/project/pyadrc)
 
@@ -14,7 +13,7 @@ A simple, yet powerful control method for when a PID controller just doesn't cut
 ## Features
 
 - Discrete linear time invariant active disturbance rejection controller for digital control systems.
-- Implementation in state-space representation form of first- and second-order ADRC.
+- First- and second-order ADRC in state-space, transfer function and minimum-footprint (FeedbackTF) form.
 - For practical application - half-gain tuning, magnitude and rate limiter for actuator limitations
 - User guide and/or theoretical background (for when you don't have anything else to read).
 - A first/second-order LTI model generator and a quadcopter altitude model for experimentation, testing and verification.
@@ -30,9 +29,9 @@ pip install pyadrc
 or you can clone the repository and install it manually:
 
 ```bash
-git clone git://github.com/onguntoglu/pyadrc
+git clone https://github.com/onguntoglu/pyadrc
 cd pyadrc
-python setup.py install
+pip install .
 ```
 
 ## Licence

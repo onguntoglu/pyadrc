@@ -279,8 +279,8 @@ class StateSpace():
         self.r_lim = lim_tuple[1]
 
     def __call__(self, y: float, u: float, r: float, zoh: bool = False):
-        """Returns value of the control signal depending on current measurements,
-        previous control action, reference signal.
+        """Returns value of the control signal depending on current
+        measurements, previous control action, reference signal.
 
         Parameters
         ----------

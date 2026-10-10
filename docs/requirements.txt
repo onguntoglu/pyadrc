@@ -1,6 +1,3 @@
-numpy
-scipy
-pyadrc
 pydata-sphinx-theme
 myst-parser
 ipykernel

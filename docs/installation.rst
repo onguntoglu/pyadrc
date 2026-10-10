@@ -32,7 +32,7 @@ You can either clone the public repository:
 
 .. code-block:: console
 
-    $ git clone git://github.com/onguntoglu/pyadrc
+    $ git clone https://github.com/onguntoglu/pyadrc
 
 Or download the `tarball`_:
 
@@ -44,7 +44,7 @@ Once you have a copy of the source, you can install it with:
 
 .. code-block:: console
 
-    $ python setup.py install
+    $ pip install .
 
 
 .. _Github repo: https://github.com/onguntoglu/pyadrc

@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyadrc"
+dynamic = ["version"]
+description = "Active Disturbance Rejection Control for Python"
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Ongun Türkcüoglu", email = "onguntoglu@gmail.com" }]
+keywords = ["pyadrc", "adrc", "control"]
+requires-python = ">=3.10"
+dependencies = ["numpy", "scipy"]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "control"]
+
+[project.urls]
+Homepage = "https://github.com/onguntoglu/pyadrc"
+Documentation = "https://pyadrc.readthedocs.io"
+
+[tool.setuptools]
+packages = ["pyadrc"]
+
+[tool.setuptools.dynamic]
+version = { attr = "pyadrc.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 79
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]

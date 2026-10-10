@@ -64,11 +64,11 @@ Ready to contribute? Here's how to set up `pyadrc` for local development.
 
     $ git clone git@github.com:your_name_here/pyadrc.git
 
-3. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development::
+3. Install your local copy into a virtualenv for local development::
 
-    $ mkvirtualenv pyadrc
     $ cd pyadrc/
-    $ python setup.py develop
+    $ python -m venv .venv && source .venv/bin/activate
+    $ pip install -e ".[dev]"
 
 4. Create a branch for local development::
 
@@ -76,14 +76,11 @@ Ready to contribute? Here's how to set up `pyadrc` for local development.
 
    Now you can make your changes locally.
 
-5. When you're done making changes, check that your changes pass flake8 and the
-   tests, including testing other Python versions with tox::
+5. When you're done making changes, check that your changes pass ruff and the
+   tests::
 
-    $ flake8 pyadrc tests
-    $ python setup.py test or pytest
-    $ tox
-
-   To get flake8 and tox, just pip install them into your virtualenv.
+    $ ruff check
+    $ pytest
 
 6. Commit your changes and push your branch to GitHub::
 
@@ -102,16 +99,15 @@ Before you submit a pull request, check that it meets these guidelines:
 2. If the pull request adds functionality, the docs should be updated. Put
    your new functionality into a function with a docstring, and add the
    feature to the list in README.md.
-3. The pull request should work for Python 3.5, 3.6, 3.7 and 3.8, and for PyPy. Check
-   https://travis-ci.com/onguntoglu/pyadrc/pull_requests
-   and make sure that the tests pass for all supported Python versions.
+3. The pull request should work for Python 3.10 and newer. GitHub Actions
+   runs the tests for all supported Python versions on every pull request.
 
 Tips
 ----
 
 To run a subset of tests::
 
-$ pytest tests.test_pyadrc
+$ pytest tests/test_pyadrc.py
 
 
 Deploying
@@ -119,10 +115,10 @@ Deploying
 
 A reminder for the maintainers on how to deploy.
 Make sure all your changes are committed (including an entry in HISTORY.rst).
-Then run::
+Bump ``__version__`` in ``pyadrc/__init__.py``, commit, then tag and push::
 
-$ bump2version patch # possible: major / minor / patch
+$ git tag vX.Y.Z
 $ git push
 $ git push --tags
 
-Travis will then deploy to PyPI if tests pass.
+GitHub Actions will then deploy to PyPI if tests pass.
