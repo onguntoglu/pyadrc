@@ -2,8 +2,8 @@
 History
 =======
 
-Unreleased
-----------
+0.6.0 (2026-10-10)
+------------------
 
 * Add ``TrackingDifferentiator`` and ``fhan`` (Han 2009, eqs. (10)-(11)) to
   shape reference signals. Uses ``d = r0 * h0**2`` in ``fhan``; the paper
