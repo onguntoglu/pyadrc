@@ -2,6 +2,15 @@
 History
 =======
 
+0.5.1 (2026-10-10)
+------------------
+
+* Apply rate and magnitude limiters in incremental ``StateSpace``
+  (``inc_form=True``), following eqs. (22)-(24) of Herbst,
+  arXiv:1908.04610. Matches the normal form in closed loop (#25).
+* Raise ``ValueError`` instead of ``assert`` for invalid arguments.
+* ``QuadAltitude`` and ``System`` accept ints for float parameters.
+
 0.5.0 (2026-10-10)
 ------------------
 
