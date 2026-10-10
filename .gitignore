@@ -105,3 +105,6 @@ ENV/
 .vscode/
 
 .examples
+# pipenv (local notebook environment, dependencies live in pyproject.toml)
+Pipfile
+Pipfile.lock
