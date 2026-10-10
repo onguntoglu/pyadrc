@@ -1,5 +1,5 @@
 pydata-sphinx-theme
 myst-parser
 ipykernel
-nbsphinx
+nbsphinx==0.9.8
 numpydoc
