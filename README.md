@@ -15,6 +15,7 @@ A simple, yet powerful control method for when a PID controller just doesn't cut
 - Discrete linear time invariant active disturbance rejection controller for digital control systems.
 - First- and second-order ADRC in state-space, transfer function and minimum-footprint (FeedbackTF) form.
 - For practical application - half-gain tuning, magnitude and rate limiter for actuator limitations
+- Han's tracking differentiator to shape reference signals and avoid setpoint jumps.
 - User guide and/or theoretical background (for when you don't have anything else to read).
 - A first/second-order LTI model generator and a quadcopter altitude model for experimentation, testing and verification.
 

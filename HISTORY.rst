@@ -2,6 +2,14 @@
 History
 =======
 
+Unreleased
+----------
+
+* Add ``TrackingDifferentiator`` and ``fhan`` (Han 2009, eqs. (10)-(11)) to
+  shape reference signals. Uses ``d = r0 * h0**2`` in ``fhan``; the paper
+  prints ``d = h0 * r0**2``, which does not give the time-optimal transient
+  it describes.
+
 0.5.2 (2026-10-10)
 ------------------
 

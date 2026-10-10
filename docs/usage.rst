@@ -38,6 +38,20 @@ Minimum-footprint implementation with rate and magnitude limiters::
                                   r_lim=r_lim, m_lim=m_lim)
     ctrl = adrc_fbtf(y, r, zoh=False)
 
+TrackingDifferentiator
+######################
+
+Han's tracking differentiator turns a reference signal with jumps into a smooth transient profile ``v1`` with derivative ``v2``, limited to the acceleration ``r0``. Feed ``v1`` to any controller as the reference signal; the controllers themselves are unchanged::
+
+    td = pyadrc.TrackingDifferentiator(delta, r0=5.0)
+
+    while True:
+        v1, v2 = td(setpoint)
+        pv = some_process(ctrl)
+        ctrl = adrc_statespace(pv, ctrl, v1)
+
+Choose ``r0`` from what the actuator can deliver. The optional filter factor ``h0`` (by default ``delta``) makes the profile slower and smoother. Use ``td.reset(v1=pv)`` to start from the current process output.
+
 Control loop
 ############
 

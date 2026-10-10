@@ -40,6 +40,53 @@ def saturation(_limits: tuple, _val: float) -> float:
     return _val
 
 
+def fhan(x1: float, x2: float, r0: float, h0: float) -> float:
+    """Discrete time-optimal control function fhan, eq. (11) in J. Han,
+    "From PID to Active Disturbance Rejection Control", IEEE Transactions on
+    Industrial Electronics, vol. 56, no. 3, pp. 900-906, 2009
+
+    Drives the discrete double integrator ``x1 <- x1 + h * x2``,
+    ``x2 <- x2 + h * u``, ``|u| <= r0``, to the origin in minimum time
+    without overshoot.
+
+    Parameters
+    ----------
+    x1 : float
+        position error, e.g. v1 - v
+    x2 : float
+        velocity
+    r0 : float
+        acceleration limit
+    h0 : float
+        filter factor, equal to the sampling time for the time-optimal
+        solution, larger for a smoother transient
+
+    Returns
+    -------
+    float
+        control signal u, ``|u| <= r0``
+
+    Notes
+    -----
+    The paper prints ``d = h0 * r0**2``. This implementation uses
+    ``d = r0 * h0**2``: d is compared with the position
+    ``y = x1 + h0 * x2``, so it must have the unit of ``r0 * h0**2``, and
+    only this form achieves the time-optimal, overshoot-free transient that
+    the paper describes.
+    """
+
+    d = r0 * h0**2
+    a0 = h0 * x2
+    y = x1 + a0
+    a1 = np.sqrt(d * (d + 8 * abs(y)))
+    a2 = a0 + np.sign(y) * (a1 - d) / 2
+    sy = (np.sign(y + d) - np.sign(y - d)) / 2
+    a = (a0 + y - a2) * sy + a2
+    sa = (np.sign(a + d) - np.sign(a - d)) / 2
+
+    return float(-r0 * (a / d - np.sign(a)) * sa - r0 * np.sign(a))
+
+
 class StateSpace():
 
     """Discrete linear time-invariant state space implementation\
@@ -964,3 +1011,94 @@ class TransferFunction(object):
         """
 
         return self._control_loop(y, r)
+
+
+class TrackingDifferentiator(object):
+
+    """Tracking differentiator of Han [5]_, eqs. (10) and (11)
+
+    Generates a transient profile v1 for a (possibly discontinuous)
+    reference signal r, together with its derivative v2, subject to the
+    acceleration limit r0. Feed v1 to a controller as the reference signal
+    to avoid setpoint jumps. The controllers in this package are left
+    unchanged, the differentiator only shapes their reference signal.
+
+    Parameters
+    ----------
+    delta : float
+        sampling time in seconds
+    r0 : float
+        acceleration limit of the transient profile, e.g. what the actuator
+        can deliver
+    h0 : float, optional
+        filter factor, by default delta (time-optimal). Larger values give
+        a smoother, slower profile and filter noise on r
+
+    References
+    ----------
+    .. [5] J. Han, "From PID to Active Disturbance Rejection Control",
+        IEEE Transactions on Industrial Electronics, vol. 56, no. 3,
+        pp. 900-906, 2009
+    """
+
+    def __init__(self, delta: float, r0: float, h0: float = None) -> None:
+
+        h0 = delta if h0 is None else h0
+
+        if delta <= 0 or r0 <= 0 or h0 <= 0:
+            raise ValueError('delta, r0 and h0 have to be positive')
+
+        self.delta = delta
+        self.r0 = r0
+        self.h0 = h0
+
+        self.v1 = 0.
+        self.v2 = 0.
+
+    @property
+    def states(self) -> tuple:
+        """Returns the transient profile and its derivative
+
+        Returns
+        -------
+        tuple
+            (v1, v2)
+        """
+
+        return self.v1, self.v2
+
+    def reset(self, v1: float = 0., v2: float = 0.) -> None:
+        """Resets the differentiator, e.g. to the current process output
+        for a bumpless start
+
+        Parameters
+        ----------
+        v1 : float, optional
+            transient profile, by default 0
+        v2 : float, optional
+            derivative of the transient profile, by default 0
+        """
+
+        self.v1 = float(v1)
+        self.v2 = float(v2)
+
+    def __call__(self, r: float) -> tuple:
+        """Advance the differentiator by one sampling period
+
+        Parameters
+        ----------
+        r : float
+            current reference signal r[k]
+
+        Returns
+        -------
+        tuple
+            (v1, v2): transient profile and its derivative
+        """
+
+        u = fhan(self.v1 - r, self.v2, self.r0, self.h0)
+
+        self.v1 = self.v1 + self.delta * self.v2
+        self.v2 = self.v2 + self.delta * u
+
+        return self.v1, self.v2
