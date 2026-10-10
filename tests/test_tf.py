@@ -66,3 +66,25 @@ def test_implementations_agree(order):
     for ctrl in others:
         np.testing.assert_allclose(_closed_loop(ctrl, order), reference,
                                    atol=1e-9)
+
+
+@pytest.mark.parametrize("order, rate", [(1, 0.05), (2, 0.5)])
+def test_incremental_limiters(order, rate):
+    """Incremental form with limiters matches the normal form (#25)."""
+
+    args = (order, 0.01, 2.0, 5.0, 4.0)
+    lim = dict(r_lim=(-rate, rate), m_lim=(-0.5, 1.2))
+    r = 1.
+
+    ss = pyadrc.StateSpace(*args, **lim)
+    ss_inc = pyadrc.StateSpace(*args, inc_form=True, **lim)
+
+    u_ss, u_inc = [], []
+    _closed_loop(lambda y, u: u_ss.append(ss(y, u, r)) or u_ss[-1], order)
+    _closed_loop(lambda y, u: u_inc.append(u + ss_inc(y, u, r)) or u_inc[-1],
+                 order)
+
+    u_inc = np.array(u_inc)
+    assert -0.5 <= u_inc.min() and u_inc.max() <= 1.2
+    assert np.abs(np.diff(u_inc)).max() == pytest.approx(rate)
+    np.testing.assert_allclose(u_inc, u_ss, atol=1e-9)

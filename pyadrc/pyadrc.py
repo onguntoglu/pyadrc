@@ -63,7 +63,8 @@ class StateSpace():
         toggle incremental form of ADRC, by default False. If the incremental
         form is toggled, the controller will return the incrementation to the
         current control signal. This value needs to be accumulated by the user.
-        Functionally identical to the non-incremental (normal) form.
+        Functionally identical to the non-incremental (normal) form, including
+        rate and magnitude limiters.
     eso_init : tuple, optional
         initial state for the extended state observer, by default False
     r_lim : tuple, optional
@@ -194,6 +195,7 @@ class StateSpace():
         if self.inc_form is True:
             self.oA = self.oA - np.eye(self.oA.shape[0])
             self.rkm1 = 0.
+            self._u_offset = None
 
     def _update_eso(self, y: float, ukm1: float):
         """Update the linear extended state observer
@@ -317,10 +319,17 @@ class StateSpace():
             u = (self.Kp / self.b0) * r - (self.w.T @ self.xhat).item()
             u = self._limiter(u)
         else:  # self.inc_form is True:
-            delta_r = r - self.rkm1
-            delta_u = ((self.Kp / self.b0) * delta_r
-                       - (self.w.T @ self.xhat_delta).item())
-            u = delta_u
+            # Unlimited control signal, offset so that it continues from the
+            # first u[k-1] passed in (bumpless). Clipped increments are not
+            # lost: limit it relative to u[k-1] and return the increment.
+            if self._u_offset is None:
+                xhat_km1 = self.xhat - self.xhat_delta
+                self._u_offset = u - ((self.Kp / self.b0) * self.rkm1
+                                      - (self.w.T @ xhat_km1).item())
+            u_unlim = ((self.Kp / self.b0) * r
+                       - (self.w.T @ self.xhat).item() + self._u_offset)
+            u = saturation(self.m_lim, u + saturation(
+                self.r_lim, u_unlim - u)) - u
 
             self.rkm1 = r
 
@@ -347,6 +356,10 @@ class StateSpace():
             self.xhat = np.zeros((nx, 1), dtype=np.float64)
         else:
             self.xhat = np.fromiter(x0, np.float64).reshape(-1, 1)
+
+        if self.inc_form is True:
+            self.rkm1 = 0.
+            self._u_offset = None
 
 
 class FeedbackTF(object):
